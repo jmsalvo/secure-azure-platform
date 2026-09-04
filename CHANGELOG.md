@@ -10,3 +10,4 @@ All notable changes to this repo are documented here.
 - environments/dev/identity/: the three Entra RBAC groups
 - environments/dev/networking/: VNet, subnet, RBAC role assignments
 - environments/dev/observability/: Log Analytics workspace, RBAC role assignments
+- environments/dev/key-vault/: platform Key Vault, RBAC role assignments
