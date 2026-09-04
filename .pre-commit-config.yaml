@@ -1,0 +1,21 @@
+# Optional local hooks. Not required to contribute; CI is the source of truth.
+#   pip install pre-commit && pre-commit install
+repos:
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.96.1
+    hooks:
+      - id: terraform_fmt
+      - id: terraform_validate
+      - id: terraform_tflint
+        args:
+          - --args=--recursive
+      - id: terraform_trivy
+        # Severity + exit-code come from ./trivy.yaml (auto-loaded from the repo root).
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: check-yaml

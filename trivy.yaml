@@ -1,0 +1,15 @@
+# Single source of truth for Trivy, shared by CI (.github/workflows/ci.yml) and
+# local runs. Trivy auto-loads ./trivy.yaml from the working directory; CI passes
+# it explicitly via the action's `trivy-config` input.
+#
+# Reference: https://trivy.dev/latest/docs/references/configuration/config-file/
+
+# Fail a run (exit 1) on any misconfiguration at or above these severities.
+severity:
+  - HIGH
+  - CRITICAL
+
+exit-code: 1
+
+# Reviewed suppressions go here (see https://trivy.dev/latest/docs/configuration/filtering/).
+# ignorefile: .trivyignore
