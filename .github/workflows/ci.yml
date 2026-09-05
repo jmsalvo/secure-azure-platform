@@ -34,7 +34,7 @@ jobs:
           set -euo pipefail
           for dir in bootstrap environments/dev/*/; do
             echo "::group::validate ${dir}"
-            terraform -chdir="${dir}" init -backend=false -input=false -no-color
+            terraform -chdir="${dir}" init -backend=false -input=false -no-color -lockfile=readonly
             terraform -chdir="${dir}" validate -no-color
             echo "::endgroup::"
           done
@@ -101,7 +101,7 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
       - working-directory: environments/dev/identity
         run: |
-          terraform init -backend-config=backend.hcl
+          terraform init -backend-config=backend.hcl -lockfile=readonly
           terraform plan -input=false -no-color \
             -var="human_operator_object_id=${{ vars.IDENTITY_HUMAN_OPERATOR_OBJECT_ID }}" \
             -var="ci_plan_service_principal_object_id=${{ vars.IDENTITY_CI_PLAN_SP_OBJECT_ID }}" \
@@ -127,7 +127,7 @@ jobs:
       - working-directory: environments/dev/networking
         run: |
           storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
-          terraform init -backend-config=backend.hcl
+          terraform init -backend-config=backend.hcl -lockfile=readonly
           terraform plan -input=false -no-color -var="tfstate_storage_account_name=${storage_account}"
 
   plan-observability:
@@ -150,7 +150,7 @@ jobs:
       - working-directory: environments/dev/observability
         run: |
           storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
-          terraform init -backend-config=backend.hcl
+          terraform init -backend-config=backend.hcl -lockfile=readonly
           terraform plan -input=false -no-color -var="tfstate_storage_account_name=${storage_account}"
 
   plan-key-vault:
@@ -173,7 +173,7 @@ jobs:
       - working-directory: environments/dev/key-vault
         run: |
           storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
-          terraform init -backend-config=backend.hcl
+          terraform init -backend-config=backend.hcl -lockfile=readonly
           terraform plan -input=false -no-color -var="tfstate_storage_account_name=${storage_account}"
 
   apply_identity:
@@ -181,6 +181,12 @@ jobs:
     needs: [fmt, validate, tflint, trivy, changes]
     runs-on: ubuntu-latest
     environment: dev-apply
+    # One apply at a time per stack: two merges to main in quick succession
+    # otherwise race for the same state blob. Queue, never cancel — cancelling
+    # a running apply mid-flight is how state gets left inconsistent.
+    concurrency:
+      group: apply-identity
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
@@ -196,13 +202,21 @@ jobs:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
       - working-directory: environments/dev/identity
         run: |
-          terraform init -backend-config=backend.hcl
+          terraform init -backend-config=backend.hcl -lockfile=readonly
           terraform apply -input=false -auto-approve -no-color \
             -var="human_operator_object_id=${{ vars.IDENTITY_HUMAN_OPERATOR_OBJECT_ID }}" \
             -var="ci_plan_service_principal_object_id=${{ vars.IDENTITY_CI_PLAN_SP_OBJECT_ID }}" \
             -var="ci_apply_service_principal_object_id=${{ vars.IDENTITY_CI_APPLY_SP_OBJECT_ID }}"
 
   apply_networking:
+    # DO NOT SIMPLIFY the needs.*.result == 'success' checks below.
+    # always() is required so this job still runs when apply_identity is
+    # *skipped* (identity unchanged in this push) — but always() also disables
+    # the implicit success() gate GitHub normally applies across a job's whole
+    # needs: list. Without the explicit checks, this job would run a live
+    # terraform apply even though fmt / validate / tflint / trivy had failed.
+    # The checks below restore that gate by hand; removing any one of them
+    # reopens the hole (fixed in 02d3842).
     if: >-
       always() &&
       github.event_name == 'push' &&
@@ -217,6 +231,10 @@ jobs:
     needs: [fmt, validate, tflint, trivy, changes, apply_identity]
     runs-on: ubuntu-latest
     environment: dev-apply
+    # See apply_identity for why: serialise applies against this stack's state.
+    concurrency:
+      group: apply-networking
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
@@ -233,10 +251,11 @@ jobs:
       - working-directory: environments/dev/networking
         run: |
           storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
-          terraform init -backend-config=backend.hcl
+          terraform init -backend-config=backend.hcl -lockfile=readonly
           terraform apply -input=false -auto-approve -no-color -var="tfstate_storage_account_name=${storage_account}"
 
   apply_observability:
+    # The explicit needs.*.result checks are load-bearing — see apply_networking.
     if: >-
       always() &&
       github.event_name == 'push' &&
@@ -251,6 +270,10 @@ jobs:
     needs: [fmt, validate, tflint, trivy, changes, apply_identity]
     runs-on: ubuntu-latest
     environment: dev-apply
+    # See apply_identity for why: serialise applies against this stack's state.
+    concurrency:
+      group: apply-observability
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
@@ -267,10 +290,11 @@ jobs:
       - working-directory: environments/dev/observability
         run: |
           storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
-          terraform init -backend-config=backend.hcl
+          terraform init -backend-config=backend.hcl -lockfile=readonly
           terraform apply -input=false -auto-approve -no-color -var="tfstate_storage_account_name=${storage_account}"
 
   apply_key_vault:
+    # The explicit needs.*.result checks are load-bearing — see apply_networking.
     if: >-
       always() &&
       github.event_name == 'push' &&
@@ -286,6 +310,10 @@ jobs:
     needs: [fmt, validate, tflint, trivy, changes, apply_networking, apply_observability]
     runs-on: ubuntu-latest
     environment: dev-apply
+    # See apply_identity for why: serialise applies against this stack's state.
+    concurrency:
+      group: apply-key-vault
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
@@ -302,5 +330,5 @@ jobs:
       - working-directory: environments/dev/key-vault
         run: |
           storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
-          terraform init -backend-config=backend.hcl
+          terraform init -backend-config=backend.hcl -lockfile=readonly
           terraform apply -input=false -auto-approve -no-color -var="tfstate_storage_account_name=${storage_account}"
