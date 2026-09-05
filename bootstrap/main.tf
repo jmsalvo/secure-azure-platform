@@ -13,6 +13,7 @@ resource "azurerm_resource_group" "bootstrap" {
   tags     = module.naming.tags
 }
 
+#trivy:ignore:AVD-AZU-0012 -- public network access is required: GitHub-hosted Actions runners (used for every stack's plan/apply job) have no stable IP range to allowlist; access is instead restricted to Entra ID/RBAC via shared_access_key_enabled=false below, with no account key to leak.
 resource "azurerm_storage_account" "tfstate" {
   name                = module.naming.names["storage_account"]
   resource_group_name = azurerm_resource_group.bootstrap.name
