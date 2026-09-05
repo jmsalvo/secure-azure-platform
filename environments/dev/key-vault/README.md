@@ -8,12 +8,19 @@ demonstrates the `terraform_remote_state` wiring end-to-end.
 
 `network_acls` restricts data-plane access to the `platform` subnet
 `networking` creates (`Microsoft.KeyVault` service endpoint) plus Azure
-services (module default). No VM or private endpoint lives in that subnet
-yet, so in practice the vault's data plane is Azure-services-only until a
-future workload occupies it — the human operator's `Key Vault Secrets
-Officer` role assignment is ready for when that changes, but reaching the
-vault from a laptop today needs a temporary `network_acls.ip_rules` entry
-or `public_network_access_enabled = true`, deliberately not wired up by
-default.
+services (`bypass = "AzureServices"`), with `default_action = "Deny"`
+turning everything else away. The stack sets
+`public_network_access_enabled = true` explicitly, overriding the module's
+`false` default: network ACLs are enforced *on* the public endpoint, so
+with public access off they never evaluate at all and the vault would
+simply be private-endpoint-only — no private endpoint exists at `v0.1`, and
+the subnet allowance documented here would be silently inert.
+
+No VM or private endpoint lives in that subnet yet, so in practice the
+vault's data plane is Azure-services-only until a future workload occupies
+it — the human operator's `Key Vault Secrets Officer` role assignment is
+ready for when that changes. Reaching the vault from a laptop today needs a
+temporary `network_acls.ip_rules` entry for your public IP, deliberately
+not wired up by default.
 
 Depends on all three other stacks; applies last.

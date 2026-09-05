@@ -59,7 +59,17 @@ module "key_vault" {
   tenant_id           = data.azurerm_client_config.current.tenant_id
   tags                = module.naming.tags
 
+  # network_acls only apply to the public endpoint. The module defaults
+  # public_network_access_enabled to false, which would make the vault
+  # private-endpoint-only and leave the subnet rule below completely inert —
+  # so turn the public endpoint on and let deny-by-default plus the service
+  # endpoint from networking's platform subnet do the actual restricting.
+  # No private endpoint exists at v0.1 (nothing to attach one to).
+  public_network_access_enabled = true
+
   network_acls = {
+    default_action             = "Deny"
+    bypass                     = "AzureServices"
     virtual_network_subnet_ids = [data.terraform_remote_state.networking.outputs.platform_subnet_id]
   }
 

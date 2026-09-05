@@ -40,6 +40,52 @@ module "networking" {
     platform = {
       address_prefixes  = ["10.30.1.0/24"]
       service_endpoints = ["Microsoft.KeyVault"]
+
+      # Deny-by-default baseline. Setting security_rules makes the module
+      # create nsg-platform and associate it with the subnet. Azure's own
+      # default rules already deny all inbound but *allow* all outbound to the
+      # Internet, so the two Deny rules below make the inbound posture explicit
+      # (it survives any future rule inserted above priority 4096) and close the
+      # outbound hole. Both are scoped to the Internet service tag rather than
+      # "*" so the platform defaults at 65000/65001 — intra-VNet traffic and
+      # load-balancer probes — keep working; the single Allow carves out the one
+      # egress path this landing zone actually needs today, Key Vault over the
+      # Microsoft.KeyVault service endpoint declared above.
+      security_rules = [
+        {
+          name                       = "allow-key-vault-outbound"
+          priority                   = 4000
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "AzureKeyVault"
+        },
+        {
+          name                       = "deny-internet-inbound"
+          priority                   = 4096
+          direction                  = "Inbound"
+          access                     = "Deny"
+          protocol                   = "*"
+          source_port_range          = "*"
+          destination_port_range     = "*"
+          source_address_prefix      = "Internet"
+          destination_address_prefix = "*"
+        },
+        {
+          name                       = "deny-internet-outbound"
+          priority                   = 4096
+          direction                  = "Outbound"
+          access                     = "Deny"
+          protocol                   = "*"
+          source_port_range          = "*"
+          destination_port_range     = "*"
+          source_address_prefix      = "*"
+          destination_address_prefix = "Internet"
+        },
+      ]
     }
   }
 }
