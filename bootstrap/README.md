@@ -10,6 +10,22 @@ authenticates as.
 - Personal Azure subscription + Entra tenant, Global Admin (`plan/docs/status.md` user to-do).
 - `az login` as that Global Admin.
 - Terraform >= 1.6.
+- A principal with `Microsoft.Authorization/roleAssignments/write` **at
+  subscription scope** — this config hands the CI identities subscription-scoped
+  roles, which only a subscription `Owner` or `User Access Administrator` can
+  grant. Entra **Global Admin is not automatically either of those**: a personal
+  tenant's Global Admin has no Azure RBAC on the subscription until it's given
+  some. If `terraform apply` here fails with `AuthorizationFailed` on a
+  `roleAssignments/write` action, elevate once, out of band, then re-run:
+
+  ```bash
+  # one-time, from the Entra "Access management for Azure resources" toggle
+  # (Entra ID → Properties) or an existing Owner:
+  az role assignment create \
+    --assignee "$(az ad signed-in-user show --query id -o tsv)" \
+    --role Owner \
+    --scope "/subscriptions/$(az account show --query id -o tsv)"
+  ```
 
 ## Run it
 
@@ -51,7 +67,10 @@ terraform apply
    `terraform.tfvars.example`) for local runs — CI reads the repo variables
    above instead of this file (it's gitignored, so CI never sees it). See
    that stack's README.
-4. **Grant `Group.ReadWrite.All`** (admin-consented Microsoft Graph
+4. **Grant the Microsoft Graph permissions** — both sub-steps are manual and
+   Global-Admin-only.
+
+   **4a. Grant `Group.ReadWrite.All`** (admin-consented Microsoft Graph
    application permission) to the `sap-dev-ci-apply` app registration —
    tracked in `plan/docs/status.md`'s user to-do list. Azure RBAC roles
    don't cover Microsoft Graph objects, so without this the `identity`
@@ -59,10 +78,21 @@ terraform apply
    Portal: Entra ID → App registrations → `sap-dev-ci-apply` → API
    permissions → Add → Microsoft Graph → Application permissions →
    `Group.ReadWrite.All` → Grant admin consent.
+
+   **4b. Grant `Group.Read.All`** (admin-consented Microsoft Graph
+   application permission) to the `sap-dev-ci-plan` app registration — same
+   portal path, just the other app and the read-only permission.
+   `plan-identity` runs as `ARM_CLIENT_ID_PLAN` and has to refresh
+   `azuread_group` / `azuread_group_member` state through Microsoft Graph;
+   without this, every PR touching `environments/dev/identity/**` fails at
+   `plan`. Like 4a this is manual and Global-Admin-only: Graph application
+   permissions aren't Azure RBAC, so nothing a lesser-privileged CI identity
+   runs can grant them.
 5. **Create a GitHub Environment** named `dev-apply` (Settings →
-   Environments) with required reviewers, and reference it from every
-   `apply-*` job in `.github/workflows/ci.yml` (Task 7) — this is the
-   "gated by branch protection and a GitHub Environment" property the
+   Environments) with required reviewers, and reference it from the four
+   `apply_identity` / `apply_networking` / `apply_observability` /
+   `apply_key_vault` jobs in `.github/workflows/ci.yml` (Task 7) — this is
+   the "gated by branch protection and a GitHub Environment" property the
    design spec calls for.
 
 ## Teardown
@@ -72,3 +102,11 @@ account destroys every other stack's state. If the whole landing zone is
 being decommissioned, delete stacks in reverse dependency order first
 (`key-vault` → `networking`/`observability` → `identity`), then
 `terraform destroy` here last.
+
+One trap worth knowing before you destroy the `key-vault` stack: the pinned
+`key-vault` module defaults to `purge_protection_enabled = true` and
+`soft_delete_retention_days = 90`, so `terraform destroy` leaves a
+soft-deleted vault behind that **cannot be purged** and blocks recreating a
+vault with the same name for the full 90 days. Vault names are
+deterministic (`module.naming`), so a destroy/recreate cycle in `dev` will
+fail on name collision until the retention window expires.

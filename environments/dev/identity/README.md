@@ -16,7 +16,12 @@ in by hand (see `bootstrap/README.md`).
 
 ## First apply
 
-Needs the `Group.ReadWrite.All` admin-consented Graph permission on the
-`sap-dev-ci-apply` app registration granted first (`bootstrap/README.md`
-step 4) — Azure RBAC doesn't cover Graph objects, so without it this
-stack's CI `apply` can't create/manage these groups.
+Needs **both** CI identities' admin-consented Graph permissions granted
+first (`bootstrap/README.md` step 4) — Azure RBAC doesn't cover Graph
+objects, so neither is reachable through this repo's role assignments:
+
+- `Group.ReadWrite.All` on `sap-dev-ci-apply` (step 4a) — without it this
+  stack's CI `apply` can't create/manage these groups.
+- `Group.Read.All` on `sap-dev-ci-plan` (step 4b) — without it every PR
+  touching this stack fails at `plan`, because refreshing `azuread_group` /
+  `azuread_group_member` state is itself a Graph read.

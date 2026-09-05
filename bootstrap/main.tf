@@ -1,3 +1,7 @@
+locals {
+  subscription_scope = "/subscriptions/${data.azurerm_client_config.current.subscription_id}"
+}
+
 module "naming" {
   source = "github.com/jmsalvo/terraform-azure-modules//modules/naming?ref=v0.1.0"
 
@@ -79,5 +83,32 @@ resource "azurerm_role_assignment" "tfstate_ci_plan_read" {
 resource "azurerm_role_assignment" "tfstate_ci_apply_write" {
   scope                = azurerm_storage_account.tfstate.id
   role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azuread_service_principal.ci_apply.object_id
+}
+
+# Blob access to the state account only gets CI as far as reading/writing state.
+# The stacks themselves live at subscription scope: networking, observability and
+# key-vault each create their own azurerm_resource_group, which no resource-group
+# -scoped role can authorise.
+resource "azurerm_role_assignment" "subscription_ci_plan_read" {
+  scope                = local.subscription_scope
+  role_definition_name = "Reader"
+  principal_id         = azuread_service_principal.ci_plan.object_id
+}
+
+resource "azurerm_role_assignment" "subscription_ci_apply_contribute" {
+  scope                = local.subscription_scope
+  role_definition_name = "Contributor"
+  principal_id         = azuread_service_principal.ci_apply.object_id
+}
+
+# Contributor explicitly excludes Microsoft.Authorization/*/Write, so it cannot
+# create the azurerm_role_assignment resources each stack owns. RBAC
+# Administrator is the least-privileged built-in that adds exactly that (role
+# assignment management, no other data or control plane rights) — deliberately
+# not Owner or User Access Administrator.
+resource "azurerm_role_assignment" "subscription_ci_apply_rbac_admin" {
+  scope                = local.subscription_scope
+  role_definition_name = "Role Based Access Control Administrator"
   principal_id         = azuread_service_principal.ci_apply.object_id
 }
