@@ -203,7 +203,17 @@ jobs:
             -var="ci_apply_service_principal_object_id=${{ vars.IDENTITY_CI_APPLY_SP_OBJECT_ID }}"
 
   apply_networking:
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.networking == 'true' && (needs.apply_identity.result == 'success' || needs.apply_identity.result == 'skipped')
+    if: >-
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.fmt.result == 'success' &&
+      needs.validate.result == 'success' &&
+      needs.tflint.result == 'success' &&
+      needs.trivy.result == 'success' &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.networking == 'true' &&
+      (needs.apply_identity.result == 'success' || needs.apply_identity.result == 'skipped')
     needs: [fmt, validate, tflint, trivy, changes, apply_identity]
     runs-on: ubuntu-latest
     environment: dev-apply
@@ -227,7 +237,17 @@ jobs:
           terraform apply -input=false -auto-approve -no-color -var="tfstate_storage_account_name=${storage_account}"
 
   apply_observability:
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.observability == 'true' && (needs.apply_identity.result == 'success' || needs.apply_identity.result == 'skipped')
+    if: >-
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.fmt.result == 'success' &&
+      needs.validate.result == 'success' &&
+      needs.tflint.result == 'success' &&
+      needs.trivy.result == 'success' &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.observability == 'true' &&
+      (needs.apply_identity.result == 'success' || needs.apply_identity.result == 'skipped')
     needs: [fmt, validate, tflint, trivy, changes, apply_identity]
     runs-on: ubuntu-latest
     environment: dev-apply
@@ -251,7 +271,18 @@ jobs:
           terraform apply -input=false -auto-approve -no-color -var="tfstate_storage_account_name=${storage_account}"
 
   apply_key_vault:
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.key_vault == 'true' && (needs.apply_networking.result == 'success' || needs.apply_networking.result == 'skipped') && (needs.apply_observability.result == 'success' || needs.apply_observability.result == 'skipped')
+    if: >-
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      needs.fmt.result == 'success' &&
+      needs.validate.result == 'success' &&
+      needs.tflint.result == 'success' &&
+      needs.trivy.result == 'success' &&
+      needs.changes.result == 'success' &&
+      needs.changes.outputs.key_vault == 'true' &&
+      (needs.apply_networking.result == 'success' || needs.apply_networking.result == 'skipped') &&
+      (needs.apply_observability.result == 'success' || needs.apply_observability.result == 'skipped')
     needs: [fmt, validate, tflint, trivy, changes, apply_networking, apply_observability]
     runs-on: ubuntu-latest
     environment: dev-apply
