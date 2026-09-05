@@ -1,0 +1,275 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  TERRAFORM_VERSION: "1.16.0"
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      - run: terraform fmt -check -recursive -diff
+
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      - name: terraform validate (bootstrap + every stack)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for dir in bootstrap environments/dev/*/; do
+            echo "::group::validate ${dir}"
+            terraform -chdir="${dir}" init -backend=false -input=false -no-color
+            terraform -chdir="${dir}" validate -no-color
+            echo "::endgroup::"
+          done
+
+  tflint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+      - run: tflint --init
+      - run: tflint --recursive --no-color
+
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: trivy config scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          trivy-config: trivy.yaml
+
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      identity: ${{ steps.filter.outputs.identity }}
+      networking: ${{ steps.filter.outputs.networking }}
+      observability: ${{ steps.filter.outputs.observability }}
+      key_vault: ${{ steps.filter.outputs.key_vault }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            identity:
+              - 'environments/dev/identity/**'
+            networking:
+              - 'environments/dev/networking/**'
+            observability:
+              - 'environments/dev/observability/**'
+            key_vault:
+              - 'environments/dev/key-vault/**'
+
+  plan-identity:
+    if: github.event_name == 'pull_request' && needs.changes.outputs.identity == 'true'
+    needs: [fmt, validate, tflint, trivy, changes]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID_PLAN }}
+      ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      - working-directory: environments/dev/identity
+        run: |
+          terraform init -backend-config=backend.hcl
+          terraform plan -input=false -no-color \
+            -var="human_operator_object_id=${{ vars.IDENTITY_HUMAN_OPERATOR_OBJECT_ID }}" \
+            -var="ci_plan_service_principal_object_id=${{ vars.IDENTITY_CI_PLAN_SP_OBJECT_ID }}" \
+            -var="ci_apply_service_principal_object_id=${{ vars.IDENTITY_CI_APPLY_SP_OBJECT_ID }}"
+
+  plan-networking:
+    if: github.event_name == 'pull_request' && needs.changes.outputs.networking == 'true'
+    needs: [fmt, validate, tflint, trivy, changes]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID_PLAN }}
+      ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      - working-directory: environments/dev/networking
+        run: |
+          storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
+          terraform init -backend-config=backend.hcl
+          terraform plan -input=false -no-color -var="tfstate_storage_account_name=${storage_account}"
+
+  plan-observability:
+    if: github.event_name == 'pull_request' && needs.changes.outputs.observability == 'true'
+    needs: [fmt, validate, tflint, trivy, changes]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID_PLAN }}
+      ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      - working-directory: environments/dev/observability
+        run: |
+          storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
+          terraform init -backend-config=backend.hcl
+          terraform plan -input=false -no-color -var="tfstate_storage_account_name=${storage_account}"
+
+  plan-key-vault:
+    if: github.event_name == 'pull_request' && needs.changes.outputs.key_vault == 'true'
+    needs: [fmt, validate, tflint, trivy, changes]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID_PLAN }}
+      ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      - working-directory: environments/dev/key-vault
+        run: |
+          storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
+          terraform init -backend-config=backend.hcl
+          terraform plan -input=false -no-color -var="tfstate_storage_account_name=${storage_account}"
+
+  apply_identity:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.identity == 'true'
+    needs: [fmt, validate, tflint, trivy, changes]
+    runs-on: ubuntu-latest
+    environment: dev-apply
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID_APPLY }}
+      ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      - working-directory: environments/dev/identity
+        run: |
+          terraform init -backend-config=backend.hcl
+          terraform apply -input=false -auto-approve -no-color \
+            -var="human_operator_object_id=${{ vars.IDENTITY_HUMAN_OPERATOR_OBJECT_ID }}" \
+            -var="ci_plan_service_principal_object_id=${{ vars.IDENTITY_CI_PLAN_SP_OBJECT_ID }}" \
+            -var="ci_apply_service_principal_object_id=${{ vars.IDENTITY_CI_APPLY_SP_OBJECT_ID }}"
+
+  apply_networking:
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.networking == 'true' && (needs.apply_identity.result == 'success' || needs.apply_identity.result == 'skipped')
+    needs: [fmt, validate, tflint, trivy, changes, apply_identity]
+    runs-on: ubuntu-latest
+    environment: dev-apply
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID_APPLY }}
+      ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      - working-directory: environments/dev/networking
+        run: |
+          storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
+          terraform init -backend-config=backend.hcl
+          terraform apply -input=false -auto-approve -no-color -var="tfstate_storage_account_name=${storage_account}"
+
+  apply_observability:
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.observability == 'true' && (needs.apply_identity.result == 'success' || needs.apply_identity.result == 'skipped')
+    needs: [fmt, validate, tflint, trivy, changes, apply_identity]
+    runs-on: ubuntu-latest
+    environment: dev-apply
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID_APPLY }}
+      ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      - working-directory: environments/dev/observability
+        run: |
+          storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
+          terraform init -backend-config=backend.hcl
+          terraform apply -input=false -auto-approve -no-color -var="tfstate_storage_account_name=${storage_account}"
+
+  apply_key_vault:
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.key_vault == 'true' && (needs.apply_networking.result == 'success' || needs.apply_networking.result == 'skipped') && (needs.apply_observability.result == 'success' || needs.apply_observability.result == 'skipped')
+    needs: [fmt, validate, tflint, trivy, changes, apply_networking, apply_observability]
+    runs-on: ubuntu-latest
+    environment: dev-apply
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID_APPLY }}
+      ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      - working-directory: environments/dev/key-vault
+        run: |
+          storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
+          terraform init -backend-config=backend.hcl
+          terraform apply -input=false -auto-approve -no-color -var="tfstate_storage_account_name=${storage_account}"
