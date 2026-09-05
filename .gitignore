@@ -12,7 +12,9 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
-.terraform.lock.hcl
+# .terraform.lock.hcl is deliberately NOT ignored: provider versions are pinned
+# and committed, same discipline as the `?ref=v0.1.0` module pins. CI inits with
+# -lockfile=readonly so drift fails loudly instead of silently re-resolving.
 
 # Editors / OS
 .idea/
