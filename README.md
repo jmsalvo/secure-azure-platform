@@ -82,6 +82,19 @@ CI (`.github/workflows/ci.yml`) runs on every PR and on `main`:
   and network-restricted by default (see `environments/dev/key-vault/README.md`).
 - `trivy config` scans every stack's HCL for insecure defaults on every
   change.
+- Provider versions are pinned in committed `.terraform.lock.hcl` files and
+  CI inits with `-lockfile=readonly`, so a provider can't change under CI
+  between a reviewed `plan` and the `apply` that follows it.
+
+**Known limitation — the approved `apply` is not the reviewed `plan`.**
+`apply_*` jobs currently re-run `terraform plan` internally rather than
+applying a `-out=tfplan` artifact produced by the PR's `plan-*` job. Plan
+runs on `pull_request` and apply runs on `push` to `main`, so the two never
+share a workflow run and no plan file crosses between them. The practical
+consequence: the `dev-apply` environment reviewer is approving *the job*,
+not a specific reviewed plan, and what applies is not provably identical to
+what was reviewed. Closing this gap (passing a plan artifact from the PR
+into the post-merge apply) is a known follow-up, not yet implemented.
 
 ## Teardown
 

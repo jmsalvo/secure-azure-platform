@@ -27,6 +27,24 @@ team's: PR-based, CI-gated, Conventional Commits.
 Windows contributors: `scripts\check.ps1` runs the credential-free checks
 natively — see below.
 
+Provider versions live in each config's committed `.terraform.lock.hcl`
+(deliberately not gitignored, same pinning discipline as the `?ref=v0.1.0`
+module pins). CI runs `terraform init -lockfile=readonly`, so a lock file
+that doesn't already satisfy the constraints fails the build instead of
+silently re-resolving. To bump a provider, run `terraform providers lock
+-platform=linux_amd64 -platform=windows_amd64` in the affected directory
+(both platforms — CI is Linux) and commit the result.
+
+## Repo layout notes
+
+- `docs/decisions/` — Architecture Decision Records.
+- `docs/evidence/` — CI-run and release evidence artifacts (plan output,
+  scan results, screenshots) kept alongside the code they attest to, the
+  same convention as the sibling
+  [`terraform-azure-modules`](https://github.com/jmsalvo/terraform-azure-modules)
+  repo. Empty at `v0.1` (nothing has been applied against a real tenant
+  yet), hence the `.gitkeep`.
+
 ## Local checks
 
 **Windows** (no bash needed):
@@ -54,6 +72,37 @@ done
 tflint --init && tflint --recursive
 trivy config --config trivy.yaml .
 ```
+
+## Local runs that touch Azure (`plan` / `apply`)
+
+`az login` alone isn't enough: the `azurerm` v4 provider no longer infers a
+subscription from the CLI's default context, so an explicit subscription ID
+is required or `init`/`plan` fails with *"subscription ID could not be
+determined"*.
+
+```bash
+az login
+export ARM_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+```
+
+```powershell
+az login
+$env:ARM_SUBSCRIPTION_ID = (az account show --query id -o tsv)
+```
+
+CI sets the same variable from the `ARM_SUBSCRIPTION_ID` repo variable
+(see `bootstrap/README.md`).
+
+## CI on pull requests from forks
+
+Once this repo is public, PRs opened from a fork get no `id-token: write`
+permission — GitHub withholds it from fork workflows by design, so no OIDC
+token can be minted and the `plan-*` jobs **fail rather than skip**. That is
+intentional and correct: fail-closed. There is no supported way to give an
+untrusted fork a token for this subscription, and `pull_request_target`
+(which would run with the base repo's permissions against fork-controlled
+code) is deliberately not used. A maintainer re-runs the change from a
+branch in this repo to get a `plan`.
 
 ## Adding a stack
 
