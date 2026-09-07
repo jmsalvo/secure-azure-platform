@@ -1,0 +1,73 @@
+name: tf-stack
+description: >-
+  terraform init + plan/apply for one environments/dev/<stack>, with the shared
+  -var wiring used by every plan-* / apply_* job in ci.yml. Group object IDs
+  arrive as inputs and are read from the step env in the shell (never
+  interpolated into command text).
+
+inputs:
+  stack:
+    description: Stack directory name under environments/dev/ (networking, observability, key-vault).
+    required: true
+  mode:
+    description: '"plan" or "apply".'
+    required: true
+  terraform-version:
+    description: Terraform version for hashicorp/setup-terraform.
+    required: true
+  humans-group-object-id:
+    description: Object ID of the sap-dev-humans Entra group.
+    required: true
+  ci-plan-group-object-id:
+    description: Object ID of the sap-dev-ci-plan Entra group.
+    required: true
+  ci-apply-group-object-id:
+    description: Object ID of the sap-dev-ci-apply Entra group.
+    required: true
+  needs-tfstate-storage-account:
+    description: >-
+      "true" for a stack that reads another stack's remote state (key-vault) and
+      therefore declares the tfstate_storage_account_name variable. The value is
+      read from the stack's backend.hcl so it lives in exactly one place.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ inputs.terraform-version }}
+    # Azure auth (ARM_CLIENT_ID / ARM_TENANT_ID / ARM_SUBSCRIPTION_ID /
+    # ARM_USE_OIDC) is read by terraform from the process environment, which
+    # the calling job supplies via its own env: block — job-level env is
+    # inherited by composite-action run steps. OIDC token vars are runner-
+    # injected per step wherever id-token: write is granted.
+    - shell: bash
+      working-directory: environments/dev/${{ inputs.stack }}
+      env:
+        MODE: ${{ inputs.mode }}
+        NEEDS_TFSTATE_SA: ${{ inputs.needs-tfstate-storage-account }}
+        HUMANS_GROUP_OBJECT_ID: ${{ inputs.humans-group-object-id }}
+        CI_PLAN_GROUP_OBJECT_ID: ${{ inputs.ci-plan-group-object-id }}
+        CI_APPLY_GROUP_OBJECT_ID: ${{ inputs.ci-apply-group-object-id }}
+      run: |
+        set -euo pipefail
+
+        terraform init -backend-config=backend.hcl -lockfile=readonly
+
+        var_args=(
+          -var="humans_group_object_id=${HUMANS_GROUP_OBJECT_ID}"
+          -var="ci_plan_group_object_id=${CI_PLAN_GROUP_OBJECT_ID}"
+          -var="ci_apply_group_object_id=${CI_APPLY_GROUP_OBJECT_ID}"
+        )
+        if [ "${NEEDS_TFSTATE_SA}" = "true" ]; then
+          storage_account="$(grep -m1 storage_account_name backend.hcl | cut -d'"' -f2)"
+          var_args+=(-var="tfstate_storage_account_name=${storage_account}")
+        fi
+
+        case "${MODE}" in
+          plan)  terraform plan  -input=false -no-color "${var_args[@]}" ;;
+          apply) terraform apply -input=false -auto-approve -no-color "${var_args[@]}" ;;
+          *) echo "tf-stack: unknown mode '${MODE}' (want plan|apply)" >&2; exit 1 ;;
+        esac

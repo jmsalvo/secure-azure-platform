@@ -2,8 +2,10 @@
 
 Real Terraform, **local state**, run **once by hand** — this is the
 infrastructure that has to predate "clone and go" for every other stack:
-the remote-state storage account, and the two managed identities CI
-authenticates as via GitHub OIDC.
+the remote-state storage account, and the two managed identities
+(`id-sap-dev-ci-plan`, `id-sap-dev-ci-apply`) CI authenticates as via GitHub
+OIDC. The `id-` prefix keeps them distinct from the same-suffixed Entra
+groups they are members of.
 
 ## Prerequisites
 

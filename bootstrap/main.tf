@@ -47,7 +47,7 @@ resource "azurerm_storage_container" "tfstate" {
 # valid RBAC target and Entra group member, exactly as an app registration's
 # service principal was.
 resource "azurerm_user_assigned_identity" "ci_plan" {
-  name                = "sap-dev-ci-plan"
+  name                = "id-sap-dev-ci-plan"
   resource_group_name = azurerm_resource_group.bootstrap.name
   location            = var.location
   tags                = module.naming.tags
@@ -63,7 +63,7 @@ resource "azurerm_federated_identity_credential" "ci_plan_pull_request" {
 }
 
 resource "azurerm_user_assigned_identity" "ci_apply" {
-  name                = "sap-dev-ci-apply"
+  name                = "id-sap-dev-ci-apply"
   resource_group_name = azurerm_resource_group.bootstrap.name
   location            = var.location
   tags                = module.naming.tags

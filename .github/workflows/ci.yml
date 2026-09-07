@@ -79,6 +79,10 @@ jobs:
             key_vault:
               - 'environments/dev/key-vault/**'
 
+  # plan-* / apply_* all share the same terraform wiring — see
+  # .github/actions/tf-stack. Repo-variable values are passed as action inputs,
+  # not interpolated into shell command text.
+
   plan-networking:
     if: github.event_name == 'pull_request' && needs.changes.outputs.networking == 'true'
     needs: [fmt, validate, tflint, trivy, changes]
@@ -93,16 +97,14 @@ jobs:
       ARM_USE_OIDC: "true"
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: ./.github/actions/tf-stack
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-      - working-directory: environments/dev/networking
-        run: |
-          terraform init -backend-config=backend.hcl -lockfile=readonly
-          terraform plan -input=false -no-color \
-            -var="humans_group_object_id=${{ vars.HUMANS_GROUP_OBJECT_ID }}" \
-            -var="ci_plan_group_object_id=${{ vars.CI_PLAN_GROUP_OBJECT_ID }}" \
-            -var="ci_apply_group_object_id=${{ vars.CI_APPLY_GROUP_OBJECT_ID }}"
+          stack: networking
+          mode: plan
+          terraform-version: ${{ env.TERRAFORM_VERSION }}
+          humans-group-object-id: ${{ vars.HUMANS_GROUP_OBJECT_ID }}
+          ci-plan-group-object-id: ${{ vars.CI_PLAN_GROUP_OBJECT_ID }}
+          ci-apply-group-object-id: ${{ vars.CI_APPLY_GROUP_OBJECT_ID }}
 
   plan-observability:
     if: github.event_name == 'pull_request' && needs.changes.outputs.observability == 'true'
@@ -118,16 +120,14 @@ jobs:
       ARM_USE_OIDC: "true"
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: ./.github/actions/tf-stack
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-      - working-directory: environments/dev/observability
-        run: |
-          terraform init -backend-config=backend.hcl -lockfile=readonly
-          terraform plan -input=false -no-color \
-            -var="humans_group_object_id=${{ vars.HUMANS_GROUP_OBJECT_ID }}" \
-            -var="ci_plan_group_object_id=${{ vars.CI_PLAN_GROUP_OBJECT_ID }}" \
-            -var="ci_apply_group_object_id=${{ vars.CI_APPLY_GROUP_OBJECT_ID }}"
+          stack: observability
+          mode: plan
+          terraform-version: ${{ env.TERRAFORM_VERSION }}
+          humans-group-object-id: ${{ vars.HUMANS_GROUP_OBJECT_ID }}
+          ci-plan-group-object-id: ${{ vars.CI_PLAN_GROUP_OBJECT_ID }}
+          ci-apply-group-object-id: ${{ vars.CI_APPLY_GROUP_OBJECT_ID }}
 
   plan-key-vault:
     if: github.event_name == 'pull_request' && needs.changes.outputs.key_vault == 'true'
@@ -143,18 +143,15 @@ jobs:
       ARM_USE_OIDC: "true"
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: ./.github/actions/tf-stack
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-      - working-directory: environments/dev/key-vault
-        run: |
-          storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
-          terraform init -backend-config=backend.hcl -lockfile=readonly
-          terraform plan -input=false -no-color \
-            -var="tfstate_storage_account_name=${storage_account}" \
-            -var="humans_group_object_id=${{ vars.HUMANS_GROUP_OBJECT_ID }}" \
-            -var="ci_plan_group_object_id=${{ vars.CI_PLAN_GROUP_OBJECT_ID }}" \
-            -var="ci_apply_group_object_id=${{ vars.CI_APPLY_GROUP_OBJECT_ID }}"
+          stack: key-vault
+          mode: plan
+          terraform-version: ${{ env.TERRAFORM_VERSION }}
+          humans-group-object-id: ${{ vars.HUMANS_GROUP_OBJECT_ID }}
+          ci-plan-group-object-id: ${{ vars.CI_PLAN_GROUP_OBJECT_ID }}
+          ci-apply-group-object-id: ${{ vars.CI_APPLY_GROUP_OBJECT_ID }}
+          needs-tfstate-storage-account: "true"
 
   apply_networking:
     # No always() here, deliberately. Every job in needs: below runs
@@ -187,16 +184,14 @@ jobs:
       ARM_USE_OIDC: "true"
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: ./.github/actions/tf-stack
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-      - working-directory: environments/dev/networking
-        run: |
-          terraform init -backend-config=backend.hcl -lockfile=readonly
-          terraform apply -input=false -auto-approve -no-color \
-            -var="humans_group_object_id=${{ vars.HUMANS_GROUP_OBJECT_ID }}" \
-            -var="ci_plan_group_object_id=${{ vars.CI_PLAN_GROUP_OBJECT_ID }}" \
-            -var="ci_apply_group_object_id=${{ vars.CI_APPLY_GROUP_OBJECT_ID }}"
+          stack: networking
+          mode: apply
+          terraform-version: ${{ env.TERRAFORM_VERSION }}
+          humans-group-object-id: ${{ vars.HUMANS_GROUP_OBJECT_ID }}
+          ci-plan-group-object-id: ${{ vars.CI_PLAN_GROUP_OBJECT_ID }}
+          ci-apply-group-object-id: ${{ vars.CI_APPLY_GROUP_OBJECT_ID }}
 
   apply_observability:
     # No always() here, deliberately — see apply_networking.
@@ -221,16 +216,14 @@ jobs:
       ARM_USE_OIDC: "true"
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: ./.github/actions/tf-stack
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-      - working-directory: environments/dev/observability
-        run: |
-          terraform init -backend-config=backend.hcl -lockfile=readonly
-          terraform apply -input=false -auto-approve -no-color \
-            -var="humans_group_object_id=${{ vars.HUMANS_GROUP_OBJECT_ID }}" \
-            -var="ci_plan_group_object_id=${{ vars.CI_PLAN_GROUP_OBJECT_ID }}" \
-            -var="ci_apply_group_object_id=${{ vars.CI_APPLY_GROUP_OBJECT_ID }}"
+          stack: observability
+          mode: apply
+          terraform-version: ${{ env.TERRAFORM_VERSION }}
+          humans-group-object-id: ${{ vars.HUMANS_GROUP_OBJECT_ID }}
+          ci-plan-group-object-id: ${{ vars.CI_PLAN_GROUP_OBJECT_ID }}
+          ci-apply-group-object-id: ${{ vars.CI_APPLY_GROUP_OBJECT_ID }}
 
   apply_key_vault:
     # always() is required so this job still runs when apply_networking /
@@ -269,15 +262,12 @@ jobs:
       ARM_USE_OIDC: "true"
     steps:
       - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: ./.github/actions/tf-stack
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-      - working-directory: environments/dev/key-vault
-        run: |
-          storage_account="$(grep storage_account_name backend.hcl | cut -d'"' -f2)"
-          terraform init -backend-config=backend.hcl -lockfile=readonly
-          terraform apply -input=false -auto-approve -no-color \
-            -var="tfstate_storage_account_name=${storage_account}" \
-            -var="humans_group_object_id=${{ vars.HUMANS_GROUP_OBJECT_ID }}" \
-            -var="ci_plan_group_object_id=${{ vars.CI_PLAN_GROUP_OBJECT_ID }}" \
-            -var="ci_apply_group_object_id=${{ vars.CI_APPLY_GROUP_OBJECT_ID }}"
+          stack: key-vault
+          mode: apply
+          terraform-version: ${{ env.TERRAFORM_VERSION }}
+          humans-group-object-id: ${{ vars.HUMANS_GROUP_OBJECT_ID }}
+          ci-plan-group-object-id: ${{ vars.CI_PLAN_GROUP_OBJECT_ID }}
+          ci-apply-group-object-id: ${{ vars.CI_APPLY_GROUP_OBJECT_ID }}
+          needs-tfstate-storage-account: "true"
