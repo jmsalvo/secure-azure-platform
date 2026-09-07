@@ -1,6 +1,6 @@
 # 0001 — Lifecycle-aligned Terraform stacks, not one state per environment
 
-- **Status:** Accepted
+- **Status:** Accepted (amended 2026-09-06)
 - **Date:** 2026-09-01
 
 ## Context
@@ -17,13 +17,14 @@ together — the wrong blast radius for a change to any one of them.
 One state file per **lifecycle-aligned stack**, per environment, under
 `environments/<env>/<stack>/`:
 
-- `identity/` — three Entra groups. No dependencies.
-- `networking/` — VNet, subnets. Depends on `identity` (assigns RBAC roles to
-  its groups on its own resource group).
-- `observability/` — Log Analytics workspace. Same dependency shape as
-  `networking`.
-- `key-vault/` — the platform Key Vault. Depends on all three above (subnet
-  ID, group object IDs, workspace ID).
+- `networking/` — VNet, subnets. No dependencies.
+- `observability/` — Log Analytics workspace. No dependencies.
+- `key-vault/` — the platform Key Vault. Depends on `networking` and
+  `observability` (subnet ID, workspace ID).
+
+The three Entra RBAC groups are not a stack — they are created by a directory
+admin outside this repo and their object IDs are passed to each stack as
+input variables (see the 2026-09-06 amendment).
 
 Stacks reference each other's outputs via native `terraform_remote_state`
 data sources. No Terragrunt or Terraform Stacks — the dependency graph here
@@ -55,13 +56,28 @@ where the stack count only grows (`aks/` at `v0.2`, likely `policy/` at
 
 ## Consequences
 
-- Four `terraform init`/`plan`/`apply` cycles instead of one — more moving
+- Three `terraform init`/`plan`/`apply` cycles instead of one — more moving
   parts in CI (see root `README.md`'s job graph), but each cycle is smaller
   and safer.
 - Cross-stack references go through `terraform_remote_state`, which means a
   downstream stack's `plan` needs the upstream stack's state to already
   exist in the remote backend — not just its code to exist in this PR's
   diff. First-time rollout order matters (see root `README.md`).
+
+## Amendment — 2026-09-06
+
+The original decision included a fourth stack, `identity/`, that created the
+three Entra RBAC groups and their `azuread_group_member` assignments. It has
+been removed. The deployment tenant is not owned by the operator and grants
+no directory admin role, so a directory admin now pre-creates the three groups
+(assigned, cloud-only security groups) and adds their members by hand; the
+group object IDs enter `networking`, `observability`, and `key-vault` as
+GitHub repository variables instead of via `terraform_remote_state`. This
+removes the last Microsoft Graph write from the repo and collapses the
+dependency graph from three tiers to two — `networking` and `observability`
+now have no upstream stack. The lifecycle-alignment rationale above is
+unchanged for the stacks that remain. Planned in
+`docs/superpowers/plans/2026-09-06-post-merge-design-changes.md`.
 
 ## Revisit when
 

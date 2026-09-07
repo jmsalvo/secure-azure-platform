@@ -9,8 +9,8 @@ All notable changes to this repo are documented here.
 - repo scaffold: conventions, tooling config (`.gitattributes`, `.gitignore`,
   `.pre-commit-config.yaml`, `.tflint.hcl`, `trivy.yaml`, `scripts/check.ps1`),
   `CONTRIBUTING.md`, and ADR 0001 (lifecycle-aligned stacks)
-- bootstrap/: one-time state storage account + OIDC app registrations for CI
-- environments/dev/identity/: the three Entra RBAC groups
+- bootstrap/: one-time state storage account + user-assigned managed
+  identities (GitHub OIDC federated) for CI
 - environments/dev/networking/: VNet, subnet, RBAC role assignments
 - environments/dev/observability/: Log Analytics workspace, RBAC role assignments
 - environments/dev/key-vault/: platform Key Vault, RBAC role assignments
@@ -18,10 +18,27 @@ All notable changes to this repo are documented here.
 - root README.md: stack dependency diagram, first-time rollout order, CI shape,
   security considerations
 - environments/dev/networking/: deny-by-default NSG on the `platform` subnet
-- committed `.terraform.lock.hcl` for bootstrap and all four stacks
+- committed `.terraform.lock.hcl` for bootstrap and all three stacks
   (linux_amd64 + windows_amd64 hashes); CI inits with `-lockfile=readonly`
 - .github/workflows/ci.yml: per-stack `concurrency` groups on the four
   `apply_*` jobs, so simultaneous merges queue instead of racing for state
+
+### Changed
+
+- Default branch renamed `master` → `main` (matches what `ci.yml` and
+  `bootstrap/`'s federated-credential subject already reference).
+- `networking`, `observability`, and `key-vault` take the three Entra group
+  object IDs as input variables (GitHub repo variables `HUMANS_GROUP_OBJECT_ID`
+  / `CI_PLAN_GROUP_OBJECT_ID` / `CI_APPLY_GROUP_OBJECT_ID`) instead of reading
+  them from the `identity` stack's remote state.
+
+### Removed
+
+- `environments/dev/identity/`. The three Entra RBAC groups are now created
+  and membership-managed by a directory admin outside this repo (assigned,
+  cloud-only security groups); the repo makes no Microsoft Graph writes and
+  the `azuread` provider is gone. Stack dependency graph drops from three
+  tiers to two.
 
 ### Fixed
 
