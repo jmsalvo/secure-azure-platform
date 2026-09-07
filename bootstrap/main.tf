@@ -40,66 +40,74 @@ resource "azurerm_storage_container" "tfstate" {
   storage_account_id = azurerm_storage_account.tfstate.id
 }
 
-resource "azuread_application" "ci_plan" {
-  display_name = "sap-dev-ci-plan"
+# CI identities: user-assigned managed identities federated to GitHub OIDC.
+# Plain ARM resources in the bootstrap resource group — creating them needs
+# only Contributor on that RG (you have subscription Owner), no directory
+# role and no Microsoft Graph permission. A managed identity's principal is a
+# valid RBAC target and Entra group member, exactly as an app registration's
+# service principal was.
+resource "azurerm_user_assigned_identity" "ci_plan" {
+  name                = "sap-dev-ci-plan"
+  resource_group_name = azurerm_resource_group.bootstrap.name
+  location            = var.location
+  tags                = module.naming.tags
 }
 
-resource "azuread_service_principal" "ci_plan" {
-  client_id = azuread_application.ci_plan.client_id
+resource "azurerm_federated_identity_credential" "ci_plan_pull_request" {
+  name                = "github-pull-request"
+  resource_group_name = azurerm_resource_group.bootstrap.name
+  parent_id           = azurerm_user_assigned_identity.ci_plan.id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = "https://token.actions.githubusercontent.com"
+  subject             = "repo:${var.github_repository}:pull_request"
 }
 
-resource "azuread_application_federated_identity_credential" "ci_plan_pull_request" {
-  application_id = azuread_application.ci_plan.id
-  display_name   = "github-pull-request"
-  description    = "Federated credential for terraform plan on pull requests."
-  audiences      = ["api://AzureADTokenExchange"]
-  issuer         = "https://token.actions.githubusercontent.com"
-  subject        = "repo:${var.github_repository}:pull_request"
+resource "azurerm_user_assigned_identity" "ci_apply" {
+  name                = "sap-dev-ci-apply"
+  resource_group_name = azurerm_resource_group.bootstrap.name
+  location            = var.location
+  tags                = module.naming.tags
 }
 
-resource "azuread_application" "ci_apply" {
-  display_name = "sap-dev-ci-apply"
+resource "azurerm_federated_identity_credential" "ci_apply_main" {
+  name                = "github-push-main"
+  resource_group_name = azurerm_resource_group.bootstrap.name
+  parent_id           = azurerm_user_assigned_identity.ci_apply.id
+  audience            = ["api://AzureADTokenExchange"]
+  issuer              = "https://token.actions.githubusercontent.com"
+  subject             = "repo:${var.github_repository}:ref:refs/heads/main"
 }
 
-resource "azuread_service_principal" "ci_apply" {
-  client_id = azuread_application.ci_apply.client_id
-}
-
-resource "azuread_application_federated_identity_credential" "ci_apply_main" {
-  application_id = azuread_application.ci_apply.id
-  display_name   = "github-push-main"
-  description    = "Federated credential for terraform apply on merge to main."
-  audiences      = ["api://AzureADTokenExchange"]
-  issuer         = "https://token.actions.githubusercontent.com"
-  subject        = "repo:${var.github_repository}:ref:refs/heads/main"
-}
-
+# shared_access_key_enabled = false on the state account means state access is
+# Entra-ID-only; each CI identity needs an explicit data-plane role on the
+# storage account to read/write the state blob (separate from the
+# Reader/Contributor role its Entra group later gets on each resource group).
 resource "azurerm_role_assignment" "tfstate_ci_plan_read" {
   scope                = azurerm_storage_account.tfstate.id
   role_definition_name = "Storage Blob Data Reader"
-  principal_id         = azuread_service_principal.ci_plan.object_id
+  principal_id         = azurerm_user_assigned_identity.ci_plan.principal_id
 }
 
 resource "azurerm_role_assignment" "tfstate_ci_apply_write" {
   scope                = azurerm_storage_account.tfstate.id
   role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = azuread_service_principal.ci_apply.object_id
+  principal_id         = azurerm_user_assigned_identity.ci_apply.principal_id
 }
 
-# Blob access to the state account only gets CI as far as reading/writing state.
-# The stacks themselves live at subscription scope: networking, observability and
-# key-vault each create their own azurerm_resource_group, which no resource-group
-# -scoped role can authorise.
+# Blob access to the state account only gets CI as far as reading/writing
+# state. The stacks themselves live at subscription scope: networking,
+# observability and key-vault each create their own azurerm_resource_group,
+# which no resource-group-scoped role can authorise.
 resource "azurerm_role_assignment" "subscription_ci_plan_read" {
   scope                = local.subscription_scope
   role_definition_name = "Reader"
-  principal_id         = azuread_service_principal.ci_plan.object_id
+  principal_id         = azurerm_user_assigned_identity.ci_plan.principal_id
 }
 
 resource "azurerm_role_assignment" "subscription_ci_apply_contribute" {
   scope                = local.subscription_scope
   role_definition_name = "Contributor"
-  principal_id         = azuread_service_principal.ci_apply.object_id
+  principal_id         = azurerm_user_assigned_identity.ci_apply.principal_id
 }
 
 # Contributor explicitly excludes Microsoft.Authorization/*/Write, so it cannot
@@ -110,5 +118,5 @@ resource "azurerm_role_assignment" "subscription_ci_apply_contribute" {
 resource "azurerm_role_assignment" "subscription_ci_apply_rbac_admin" {
   scope                = local.subscription_scope
   role_definition_name = "Role Based Access Control Administrator"
-  principal_id         = azuread_service_principal.ci_apply.object_id
+  principal_id         = azurerm_user_assigned_identity.ci_apply.principal_id
 }

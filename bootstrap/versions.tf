@@ -6,10 +6,6 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "~> 4.0"
     }
-    azuread = {
-      source  = "hashicorp/azuread"
-      version = "~> 3.0"
-    }
   }
 
   # Local state deliberately: this config creates the remote-state backend
@@ -19,7 +15,5 @@ terraform {
 provider "azurerm" {
   features {}
 }
-
-provider "azuread" {}
 
 data "azurerm_client_config" "current" {}
