@@ -157,6 +157,13 @@ jobs:
             -var="ci_apply_group_object_id=${{ vars.CI_APPLY_GROUP_OBJECT_ID }}"
 
   apply_networking:
+    # No always() here, deliberately. Every job in needs: below runs
+    # unconditionally on a push, so none is ever *skipped* and GitHub's
+    # implicit success() gate over the whole needs: list is the whole gate —
+    # a failed fmt / validate / tflint / trivy skips this job. If you ever
+    # add a *skippable* job to needs: (one with its own if:), you must also
+    # add always() AND hand-rolled needs.<job>.result == 'success' checks for
+    # fmt / validate / tflint / trivy — see apply_key_vault and commit 02d3842.
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&
@@ -192,6 +199,7 @@ jobs:
             -var="ci_apply_group_object_id=${{ vars.CI_APPLY_GROUP_OBJECT_ID }}"
 
   apply_observability:
+    # No always() here, deliberately — see apply_networking.
     if: >-
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main' &&

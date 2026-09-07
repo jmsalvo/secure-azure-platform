@@ -86,12 +86,14 @@ resource "azurerm_role_assignment" "tfstate_ci_plan_read" {
   scope                = azurerm_storage_account.tfstate.id
   role_definition_name = "Storage Blob Data Reader"
   principal_id         = azurerm_user_assigned_identity.ci_plan.principal_id
+  principal_type       = "ServicePrincipal"
 }
 
 resource "azurerm_role_assignment" "tfstate_ci_apply_write" {
   scope                = azurerm_storage_account.tfstate.id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.ci_apply.principal_id
+  principal_type       = "ServicePrincipal"
 }
 
 # Blob access to the state account only gets CI as far as reading/writing
@@ -102,12 +104,14 @@ resource "azurerm_role_assignment" "subscription_ci_plan_read" {
   scope                = local.subscription_scope
   role_definition_name = "Reader"
   principal_id         = azurerm_user_assigned_identity.ci_plan.principal_id
+  principal_type       = "ServicePrincipal"
 }
 
 resource "azurerm_role_assignment" "subscription_ci_apply_contribute" {
   scope                = local.subscription_scope
   role_definition_name = "Contributor"
   principal_id         = azurerm_user_assigned_identity.ci_apply.principal_id
+  principal_type       = "ServicePrincipal"
 }
 
 # Contributor explicitly excludes Microsoft.Authorization/*/Write, so it cannot
@@ -119,4 +123,5 @@ resource "azurerm_role_assignment" "subscription_ci_apply_rbac_admin" {
   scope                = local.subscription_scope
   role_definition_name = "Role Based Access Control Administrator"
   principal_id         = azurerm_user_assigned_identity.ci_apply.principal_id
+  principal_type       = "ServicePrincipal"
 }

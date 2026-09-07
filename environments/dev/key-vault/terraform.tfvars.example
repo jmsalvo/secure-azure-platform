@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars (gitignored) for local runs. CI passes these as -var
+# flags (tfstate_storage_account_name from backend.hcl; the group IDs from the
+# HUMANS_GROUP_OBJECT_ID / CI_PLAN_GROUP_OBJECT_ID / CI_APPLY_GROUP_OBJECT_ID
+# GitHub repository variables — see bootstrap/README.md).
+tfstate_storage_account_name = "REPLACE_WITH_BOOTSTRAP_OUTPUT"
+humans_group_object_id       = "00000000-0000-0000-0000-000000000000"
+ci_plan_group_object_id      = "00000000-0000-0000-0000-000000000000"
+ci_apply_group_object_id     = "00000000-0000-0000-0000-000000000000"

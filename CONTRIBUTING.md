@@ -93,6 +93,14 @@ $env:ARM_SUBSCRIPTION_ID = (az account show --query id -o tsv)
 CI sets the same variable from the `ARM_SUBSCRIPTION_ID` repo variable
 (see `bootstrap/README.md`).
 
+CI passes each stack's input variables as `-var` flags; a local run has none, so
+before a local `plan`/`apply` in a stack `cp terraform.tfvars.example
+terraform.tfvars` in that stack directory (the copy is gitignored) and fill in
+the real values — group object IDs from `az ad group show --group <name> --query
+id -o tsv` once you own the groups (or from the directory admin), and
+`key-vault`'s `tfstate_storage_account_name` from the bootstrap output or the
+stack's `backend.hcl`.
+
 ## CI on pull requests from forks
 
 Once this repo is public, PRs opened from a fork get no `id-token: write`

@@ -51,6 +51,10 @@ All notable changes to this repo are documented here.
   could proceed even after `fmt`/`validate`/`tflint`/`trivy` failed. Restored
   the gate with explicit `needs.<job>.result == 'success'` checks, now
   documented in-file so the condition isn't "simplified" back into the bug.
+  `apply_key_vault` retains `always()` and the explicit checks because it still
+  has skippable upstream applies; `apply_networking` / `apply_observability` no
+  longer have any skippable dependency and rely on GitHub's implicit
+  `success()` gate.
 - bootstrap: grant the CI identities the subscription-scoped roles the stacks
   actually need — `Reader` for `sap-dev-ci-plan`, `Contributor` plus
   `Role Based Access Control Administrator` for `sap-dev-ci-apply`. Blob
