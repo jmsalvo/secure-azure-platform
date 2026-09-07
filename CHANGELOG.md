@@ -20,7 +20,7 @@ All notable changes to this repo are documented here.
 - environments/dev/networking/: deny-by-default NSG on the `platform` subnet
 - committed `.terraform.lock.hcl` for bootstrap and all three stacks
   (linux_amd64 + windows_amd64 hashes); CI inits with `-lockfile=readonly`
-- .github/workflows/ci.yml: per-stack `concurrency` groups on the four
+- .github/workflows/ci.yml: per-stack `concurrency` groups on the three
   `apply_*` jobs, so simultaneous merges queue instead of racing for state
 
 ### Changed

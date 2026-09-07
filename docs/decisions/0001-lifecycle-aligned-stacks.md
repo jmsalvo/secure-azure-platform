@@ -28,7 +28,7 @@ input variables (see the 2026-09-06 amendment).
 
 Stacks reference each other's outputs via native `terraform_remote_state`
 data sources. No Terragrunt or Terraform Stacks — the dependency graph here
-is four nodes deep at most, and native Terraform expresses that with nothing
+is two nodes deep at most, and native Terraform expresses that with nothing
 extra to install or learn.
 
 ## Rationale
