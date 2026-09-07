@@ -1,15 +1,3 @@
-data "terraform_remote_state" "identity" {
-  backend = "azurerm"
-
-  config = {
-    resource_group_name  = "rg-sap-dev-bootstrap"
-    storage_account_name = var.tfstate_storage_account_name
-    container_name       = "tfstate"
-    key                  = "identity.tfstate"
-    use_azuread_auth     = true
-  }
-}
-
 module "naming" {
   source = "github.com/jmsalvo/terraform-azure-modules//modules/naming?ref=v0.1.0"
 
@@ -93,17 +81,17 @@ module "networking" {
 resource "azurerm_role_assignment" "humans_contributor" {
   scope                = azurerm_resource_group.networking.id
   role_definition_name = "Contributor"
-  principal_id         = data.terraform_remote_state.identity.outputs.humans_group_object_id
+  principal_id         = var.humans_group_object_id
 }
 
 resource "azurerm_role_assignment" "ci_plan_reader" {
   scope                = azurerm_resource_group.networking.id
   role_definition_name = "Reader"
-  principal_id         = data.terraform_remote_state.identity.outputs.ci_plan_group_object_id
+  principal_id         = var.ci_plan_group_object_id
 }
 
 resource "azurerm_role_assignment" "ci_apply_contributor" {
   scope                = azurerm_resource_group.networking.id
   role_definition_name = "Contributor"
-  principal_id         = data.terraform_remote_state.identity.outputs.ci_apply_group_object_id
+  principal_id         = var.ci_apply_group_object_id
 }

@@ -3,8 +3,9 @@
 The platform-level Key Vault — shared/break-glass admin credentials, shared
 TLS certs; not a workload vault (no application workload exists yet at
 `v0.1`). Also the integration proof point for the landing zone: the only
-stack that reads outputs from all three others, so a successful `apply`
-demonstrates the `terraform_remote_state` wiring end-to-end.
+stack that reads outputs from both others (`networking`, `observability`),
+so a successful `apply` demonstrates the `terraform_remote_state` wiring
+end-to-end.
 
 `network_acls` restricts data-plane access to the `platform` subnet
 `networking` creates (`Microsoft.KeyVault` service endpoint) plus Azure
@@ -23,4 +24,4 @@ ready for when that changes. Reaching the vault from a laptop today needs a
 temporary `network_acls.ip_rules` entry for your public IP, deliberately
 not wired up by default.
 
-Depends on all three other stacks; applies last.
+Depends on both other stacks (`networking`, `observability`); applies last.

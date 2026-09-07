@@ -1,15 +1,3 @@
-data "terraform_remote_state" "identity" {
-  backend = "azurerm"
-
-  config = {
-    resource_group_name  = "rg-sap-dev-bootstrap"
-    storage_account_name = var.tfstate_storage_account_name
-    container_name       = "tfstate"
-    key                  = "identity.tfstate"
-    use_azuread_auth     = true
-  }
-}
-
 data "terraform_remote_state" "networking" {
   backend = "azurerm"
 
@@ -79,19 +67,19 @@ module "key_vault" {
 resource "azurerm_role_assignment" "humans_contributor" {
   scope                = azurerm_resource_group.key_vault.id
   role_definition_name = "Contributor"
-  principal_id         = data.terraform_remote_state.identity.outputs.humans_group_object_id
+  principal_id         = var.humans_group_object_id
 }
 
 resource "azurerm_role_assignment" "ci_plan_reader" {
   scope                = azurerm_resource_group.key_vault.id
   role_definition_name = "Reader"
-  principal_id         = data.terraform_remote_state.identity.outputs.ci_plan_group_object_id
+  principal_id         = var.ci_plan_group_object_id
 }
 
 resource "azurerm_role_assignment" "ci_apply_contributor" {
   scope                = azurerm_resource_group.key_vault.id
   role_definition_name = "Contributor"
-  principal_id         = data.terraform_remote_state.identity.outputs.ci_apply_group_object_id
+  principal_id         = var.ci_apply_group_object_id
 }
 
 # RG-level Contributor manages the vault as an ARM resource but does not grant
@@ -101,5 +89,5 @@ resource "azurerm_role_assignment" "ci_apply_contributor" {
 resource "azurerm_role_assignment" "humans_secrets_officer" {
   scope                = module.key_vault.id
   role_definition_name = "Key Vault Secrets Officer"
-  principal_id         = data.terraform_remote_state.identity.outputs.humans_group_object_id
+  principal_id         = var.humans_group_object_id
 }
