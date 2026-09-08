@@ -1,5 +1,14 @@
 locals {
-  subscription_scope = "/subscriptions/${data.azurerm_client_config.current.subscription_id}"
+  # Resource groups for the three lifecycle-aligned stacks. Created here in
+  # bootstrap, not by the stacks themselves: a stack that created its own
+  # resource group would force the CI apply identity to hold a
+  # subscription-scoped role to make the first one. Creating them here keeps
+  # every CI grant resource-group-scoped. See docs/decisions/0002-resource-groups-in-bootstrap.md.
+  stack_resource_groups = toset([
+    "rg-sap-dev-networking",
+    "rg-sap-dev-observability",
+    "rg-sap-dev-key-vault",
+  ])
 }
 
 module "naming" {
@@ -96,32 +105,55 @@ resource "azurerm_role_assignment" "tfstate_ci_apply_write" {
   principal_type       = "ServicePrincipal"
 }
 
-# Blob access to the state account only gets CI as far as reading/writing
-# state. The stacks themselves live at subscription scope: networking,
-# observability and key-vault each create their own azurerm_resource_group,
-# which no resource-group-scoped role can authorise.
-resource "azurerm_role_assignment" "subscription_ci_plan_read" {
-  scope                = local.subscription_scope
-  role_definition_name = "Reader"
-  principal_id         = azurerm_user_assigned_identity.ci_plan.principal_id
-  principal_type       = "ServicePrincipal"
+# The three lifecycle-aligned stacks own the resources *inside* one of these
+# groups but do not create the group — they read it back with a data source.
+# bootstrap creates it so no CI identity ever needs a subscription-scoped role.
+resource "azurerm_resource_group" "stack" {
+  for_each = local.stack_resource_groups
+  name     = each.value
+  location = var.location
+  tags     = module.naming.tags
 }
 
-resource "azurerm_role_assignment" "subscription_ci_apply_contribute" {
-  scope                = local.subscription_scope
+# Per-resource-group grants to the admin-managed Entra groups, replacing the
+# subscription-scoped Reader / Contributor / RBAC Administrator grants this
+# file used to make. The CI identities are members of the plan / apply groups
+# (see README); a leaked apply token now reaches three named resource groups,
+# not the whole subscription, and cannot create role assignments.
+resource "azurerm_role_assignment" "stack_humans_contributor" {
+  for_each             = azurerm_resource_group.stack
+  scope                = each.value.id
   role_definition_name = "Contributor"
-  principal_id         = azurerm_user_assigned_identity.ci_apply.principal_id
-  principal_type       = "ServicePrincipal"
+  principal_id         = var.humans_group_object_id
+  principal_type       = "Group"
 }
 
-# Contributor explicitly excludes Microsoft.Authorization/*/Write, so it cannot
-# create the azurerm_role_assignment resources each stack owns. RBAC
-# Administrator is the least-privileged built-in that adds exactly that (role
-# assignment management, no other data or control plane rights) — deliberately
-# not Owner or User Access Administrator.
-resource "azurerm_role_assignment" "subscription_ci_apply_rbac_admin" {
-  scope                = local.subscription_scope
-  role_definition_name = "Role Based Access Control Administrator"
-  principal_id         = azurerm_user_assigned_identity.ci_apply.principal_id
-  principal_type       = "ServicePrincipal"
+resource "azurerm_role_assignment" "stack_ci_plan_reader" {
+  for_each             = azurerm_resource_group.stack
+  scope                = each.value.id
+  role_definition_name = "Reader"
+  principal_id         = var.ci_plan_group_object_id
+  principal_type       = "Group"
+}
+
+resource "azurerm_role_assignment" "stack_ci_apply_contributor" {
+  for_each             = azurerm_resource_group.stack
+  scope                = each.value.id
+  role_definition_name = "Contributor"
+  principal_id         = var.ci_apply_group_object_id
+  principal_type       = "Group"
+}
+
+# Data-plane access to the platform Key Vault for human operators. The vault
+# is created by the key-vault stack; granting Key Vault Secrets Officer on its
+# resource group (which holds only that vault) reaches it without bootstrap
+# referencing a resource that does not exist yet, and keeps every role
+# assignment in this file. The key-vault module sets
+# enable_rbac_authorization = true, so an RG-scoped data-plane role inherits
+# to the vault.
+resource "azurerm_role_assignment" "key_vault_humans_secrets_officer" {
+  scope                = azurerm_resource_group.stack["rg-sap-dev-key-vault"].id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = var.humans_group_object_id
+  principal_type       = "Group"
 }
