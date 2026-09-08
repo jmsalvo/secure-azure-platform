@@ -32,17 +32,15 @@ module "naming" {
   location    = var.location
 }
 
-resource "azurerm_resource_group" "key_vault" {
-  name     = "rg-sap-dev-key-vault"
-  location = var.location
-  tags     = module.naming.tags
+data "azurerm_resource_group" "this" {
+  name = "rg-sap-dev-key-vault"
 }
 
 module "key_vault" {
   source = "github.com/jmsalvo/terraform-azure-modules//modules/key-vault?ref=v0.1.0"
 
   name                = module.naming.names["key_vault"]
-  resource_group_name = azurerm_resource_group.key_vault.name
+  resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
   tenant_id           = data.azurerm_client_config.current.tenant_id
   tags                = module.naming.tags
@@ -62,32 +60,4 @@ module "key_vault" {
   }
 
   log_analytics_workspace_id = data.terraform_remote_state.observability.outputs.log_analytics_workspace_id
-}
-
-resource "azurerm_role_assignment" "humans_contributor" {
-  scope                = azurerm_resource_group.key_vault.id
-  role_definition_name = "Contributor"
-  principal_id         = var.humans_group_object_id
-}
-
-resource "azurerm_role_assignment" "ci_plan_reader" {
-  scope                = azurerm_resource_group.key_vault.id
-  role_definition_name = "Reader"
-  principal_id         = var.ci_plan_group_object_id
-}
-
-resource "azurerm_role_assignment" "ci_apply_contributor" {
-  scope                = azurerm_resource_group.key_vault.id
-  role_definition_name = "Contributor"
-  principal_id         = var.ci_apply_group_object_id
-}
-
-# RG-level Contributor manages the vault as an ARM resource but does not grant
-# data-plane access (the module sets enable_rbac_authorization = true, no
-# access policies) — humans additionally need a Key Vault data-plane role to
-# actually read/write secrets.
-resource "azurerm_role_assignment" "humans_secrets_officer" {
-  scope                = module.key_vault.id
-  role_definition_name = "Key Vault Secrets Officer"
-  principal_id         = var.humans_group_object_id
 }
