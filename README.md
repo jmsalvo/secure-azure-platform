@@ -21,16 +21,17 @@ See [ADR 0001](docs/decisions/0001-lifecycle-aligned-stacks.md) for why.
 
 | Stack | Creates | Depends on |
 |---|---|---|
-| [`networking`](environments/dev/networking) | VNet, subnet, RBAC | — |
-| [`observability`](environments/dev/observability) | Log Analytics workspace, RBAC | — |
-| [`key-vault`](environments/dev/key-vault) | Platform Key Vault, RBAC | `networking`, `observability` |
+| [`networking`](environments/dev/networking) | VNet, subnet | — |
+| [`observability`](environments/dev/observability) | Log Analytics workspace | — |
+| [`key-vault`](environments/dev/key-vault) | Platform Key Vault | `networking`, `observability` |
 
 The three Entra RBAC groups (`sap-dev-humans` = `Contributor`,
 `sap-dev-ci-plan` = `Reader`, `sap-dev-ci-apply` = `Contributor`) are created
 and membership-managed by a directory admin outside this repo, as assigned
-cloud-only security groups. Their object IDs enter each stack as GitHub
-repository variables (`HUMANS_GROUP_OBJECT_ID`, `CI_PLAN_GROUP_OBJECT_ID`,
-`CI_APPLY_GROUP_OBJECT_ID`) — see [`bootstrap/README.md`](bootstrap/README.md).
+cloud-only security groups. `bootstrap/` creates one resource group per stack
+and assigns those groups their roles on it — the CI identities hold no
+subscription-scoped role. See [`bootstrap/README.md`](bootstrap/README.md)
+and [ADR 0002](docs/decisions/0002-resource-groups-in-bootstrap.md).
 
 Modules come from the already-released
 [`jmsalvo/terraform-azure-modules`](https://github.com/jmsalvo/terraform-azure-modules)
@@ -44,16 +45,19 @@ Layered remote state means a downstream stack's `plan` needs the upstream
 stack's state to already exist in the backend, not just its code to exist
 in the same PR. Bringing the whole landing zone up from nothing:
 
-1. `bootstrap/` — run once by hand (`bootstrap/README.md`). Creates the state
-   storage account and the two CI managed identities.
-2. Complete the manual steps in `bootstrap/README.md` — GitHub repository
-   variables (including the three Entra group object IDs), the `dev-apply`
-   environment, and the directory admin's one-time group creation plus the
-   member adds.
-3. Merge a PR touching `environments/dev/networking/` and
+1. Directory admin creates the three Entra groups and makes the operator an
+   owner of each (`bootstrap/README.md`).
+2. `bootstrap/` — run once by hand (`bootstrap/README.md`). Creates the state
+   storage account, the two CI managed identities, one resource group per
+   stack, and every role assignment (the CI groups' per-resource-group roles,
+   plus the operators' Key Vault data-plane role).
+3. Complete the remaining manual steps in `bootstrap/README.md` — the CI
+   identities into their groups, GitHub repository variables, the `dev-apply`
+   environment, and the state storage account name into each `backend.hcl`.
+4. Merge a PR touching `environments/dev/networking/` and
    `environments/dev/observability/` (together or separately — neither has an
    upstream stack).
-4. Merge a PR touching `environments/dev/key-vault/` — needs `networking` and
+5. Merge a PR touching `environments/dev/key-vault/` — needs `networking` and
    `observability` to have real applied state.
 
 After this, ordinary changes to any one stack merge and apply normally; this
@@ -70,7 +74,7 @@ CI (`.github/workflows/ci.yml`) runs on every PR and on `main`:
 | `tflint` + azurerm ruleset | whole repo | none |
 | `trivy config` | whole repo | none |
 | `terraform plan` | changed stacks, on PRs | OIDC, `sap-dev-ci-plan` (Reader) |
-| `terraform apply` | changed stacks, on merge to `main`, dependency-ordered | OIDC, `sap-dev-ci-apply` (Contributor), gated by the `dev-apply` GitHub Environment |
+| `terraform apply` | changed stacks, on merge to `main`, dependency-ordered | OIDC, `sap-dev-ci-apply` (Contributor per resource group), gated by the `dev-apply` GitHub Environment |
 
 `scripts\check.ps1` runs the credential-free checks locally (Windows).
 
@@ -83,6 +87,11 @@ CI (`.github/workflows/ci.yml`) runs on every PR and on `main`:
   they belong to are created and membership-managed by a directory admin
   outside this repo. A compromised CI identity cannot alter group membership
   or any other directory object.
+- The CI identities hold no subscription-scoped role. `bootstrap/` (run by a
+  human subscription Owner) grants them `Reader` / `Contributor` on each
+  stack's resource group only, and neither identity can create role
+  assignments — a leaked apply token reaches three named resource groups, not
+  the subscription. See [ADR 0002](docs/decisions/0002-resource-groups-in-bootstrap.md).
 - Untrusted pull requests can only run a `Reader`-scoped `plan`, never
   mutate infrastructure — `apply` runs only on merged commits to `main`,
   via a separate federated credential, gated by branch protection and the

@@ -1,6 +1,6 @@
 # 0001 — Lifecycle-aligned Terraform stacks, not one state per environment
 
-- **Status:** Accepted (amended 2026-09-06)
+- **Status:** Accepted (amended 2026-09-06, 2026-09-07)
 - **Date:** 2026-09-01
 
 ## Context
@@ -78,6 +78,13 @@ dependency graph from three tiers to two — `networking` and `observability`
 now have no upstream stack. The lifecycle-alignment rationale above is
 unchanged for the stacks that remain. Planned in
 `docs/superpowers/plans/2026-09-06-post-merge-design-changes.md`.
+
+**Further amended 2026-09-07 ([ADR 0002](0002-resource-groups-in-bootstrap.md)):**
+resource-group *creation* and the per-group role assignments moved from the
+stacks into `bootstrap/`. The stacks read their resource group via a data
+source and make no role assignments. The lifecycle-aligned **state** split —
+one state file and one resource group per stack, the stack's state owning
+everything in that group — is unchanged.
 
 ## Revisit when
 
