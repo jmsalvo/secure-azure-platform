@@ -11,9 +11,9 @@ All notable changes to this repo are documented here.
   `CONTRIBUTING.md`, and ADR 0001 (lifecycle-aligned stacks)
 - bootstrap/: one-time state storage account + user-assigned managed
   identities (GitHub OIDC federated) for CI
-- environments/dev/networking/: VNet, subnet, RBAC role assignments
-- environments/dev/observability/: Log Analytics workspace, RBAC role assignments
-- environments/dev/key-vault/: platform Key Vault, RBAC role assignments
+- environments/dev/networking/: VNet, subnet
+- environments/dev/observability/: Log Analytics workspace
+- environments/dev/key-vault/: platform Key Vault
 - .github/workflows/ci.yml: OIDC-authenticated per-stack plan/apply CI, dependency-ordered
 - root README.md: stack dependency diagram, first-time rollout order, CI shape,
   security considerations
@@ -27,10 +27,6 @@ All notable changes to this repo are documented here.
 
 - Default branch renamed `master` → `main` (matches what `ci.yml` and
   `bootstrap/`'s federated-credential subject already reference).
-- `networking`, `observability`, and `key-vault` take the three Entra group
-  object IDs as input variables (GitHub repo variables `HUMANS_GROUP_OBJECT_ID`
-  / `CI_PLAN_GROUP_OBJECT_ID` / `CI_APPLY_GROUP_OBJECT_ID`) instead of reading
-  them from the `identity` stack's remote state.
 - CI `plan-*` / `apply_*` steps extracted into a `.github/actions/tf-stack`
   composite action — one definition for all six jobs instead of six copies.
   Repo-variable values now flow through action inputs and the step `env:`
