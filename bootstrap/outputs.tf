@@ -42,3 +42,8 @@ output "subscription_id" {
   description = "Azure subscription ID. Copy into the ARM_SUBSCRIPTION_ID GitHub repo variable."
   value       = data.azurerm_client_config.current.subscription_id
 }
+
+output "stack_resource_group_names" {
+  description = "Resource groups bootstrap created for the lifecycle-aligned stacks. Each stack reads its own back with a data source."
+  value       = sort([for rg in azurerm_resource_group.stack : rg.name])
+}

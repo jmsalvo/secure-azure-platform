@@ -7,6 +7,13 @@ stack that reads outputs from both others (`networking`, `observability`),
 so a successful `apply` demonstrates the `terraform_remote_state` wiring
 end-to-end.
 
+The resource group (`rg-sap-dev-key-vault`) and every RBAC assignment
+(including the `sap-dev-humans` `Key Vault Secrets Officer` data-plane grant)
+is created by `bootstrap/` (run as a subscription Owner); this stack reads
+the group with `data "azurerm_resource_group" "this"` and creates only the
+vault inside it. See
+[ADR 0002](../../../docs/decisions/0002-resource-groups-in-bootstrap.md).
+
 `network_acls` restricts data-plane access to the `platform` subnet
 `networking` creates (`Microsoft.KeyVault` service endpoint) plus Azure
 services (`bypass = "AzureServices"`), with `default_action = "Deny"`
@@ -19,9 +26,9 @@ the subnet allowance documented here would be silently inert.
 
 No VM or private endpoint lives in that subnet yet, so in practice the
 vault's data plane is Azure-services-only until a future workload occupies
-it — the human operator's `Key Vault Secrets Officer` role assignment is
-ready for when that changes. Reaching the vault from a laptop today needs a
-temporary `network_acls.ip_rules` entry for your public IP, deliberately
-not wired up by default.
+it — the `sap-dev-humans` `Key Vault Secrets Officer` grant (made in
+`bootstrap/`) is ready for when that changes. Reaching the vault from a
+laptop today needs a temporary `network_acls.ip_rules` entry for your public
+IP, deliberately not wired up by default.
 
 Depends on both other stacks (`networking`, `observability`); applies last.

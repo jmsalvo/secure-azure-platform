@@ -1,1 +1,4 @@
-github_repository = "jmsalvo/secure-azure-platform"
+github_repository        = "jmsalvo/secure-azure-platform"
+humans_group_object_id   = "00000000-0000-0000-0000-000000000000"
+ci_plan_group_object_id  = "00000000-0000-0000-0000-000000000000"
+ci_apply_group_object_id = "00000000-0000-0000-0000-000000000000"

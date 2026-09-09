@@ -80,8 +80,9 @@ jobs:
               - 'environments/dev/key-vault/**'
 
   # plan-* / apply_* all share the same terraform wiring — see
-  # .github/actions/tf-stack. Repo-variable values are passed as action inputs,
-  # not interpolated into shell command text.
+  # .github/actions/tf-stack. The stacks take no group-object-id variables
+  # (bootstrap/ makes every role assignment); the only per-stack -var is
+  # tfstate_storage_account_name, read from backend.hcl inside the action.
 
   plan-networking:
     if: github.event_name == 'pull_request' && needs.changes.outputs.networking == 'true'
@@ -102,9 +103,6 @@ jobs:
           stack: networking
           mode: plan
           terraform-version: ${{ env.TERRAFORM_VERSION }}
-          humans-group-object-id: ${{ vars.HUMANS_GROUP_OBJECT_ID }}
-          ci-plan-group-object-id: ${{ vars.CI_PLAN_GROUP_OBJECT_ID }}
-          ci-apply-group-object-id: ${{ vars.CI_APPLY_GROUP_OBJECT_ID }}
 
   plan-observability:
     if: github.event_name == 'pull_request' && needs.changes.outputs.observability == 'true'
@@ -125,9 +123,6 @@ jobs:
           stack: observability
           mode: plan
           terraform-version: ${{ env.TERRAFORM_VERSION }}
-          humans-group-object-id: ${{ vars.HUMANS_GROUP_OBJECT_ID }}
-          ci-plan-group-object-id: ${{ vars.CI_PLAN_GROUP_OBJECT_ID }}
-          ci-apply-group-object-id: ${{ vars.CI_APPLY_GROUP_OBJECT_ID }}
 
   plan-key-vault:
     if: github.event_name == 'pull_request' && needs.changes.outputs.key_vault == 'true'
@@ -148,9 +143,6 @@ jobs:
           stack: key-vault
           mode: plan
           terraform-version: ${{ env.TERRAFORM_VERSION }}
-          humans-group-object-id: ${{ vars.HUMANS_GROUP_OBJECT_ID }}
-          ci-plan-group-object-id: ${{ vars.CI_PLAN_GROUP_OBJECT_ID }}
-          ci-apply-group-object-id: ${{ vars.CI_APPLY_GROUP_OBJECT_ID }}
           needs-tfstate-storage-account: "true"
 
   apply_networking:
@@ -189,9 +181,6 @@ jobs:
           stack: networking
           mode: apply
           terraform-version: ${{ env.TERRAFORM_VERSION }}
-          humans-group-object-id: ${{ vars.HUMANS_GROUP_OBJECT_ID }}
-          ci-plan-group-object-id: ${{ vars.CI_PLAN_GROUP_OBJECT_ID }}
-          ci-apply-group-object-id: ${{ vars.CI_APPLY_GROUP_OBJECT_ID }}
 
   apply_observability:
     # No always() here, deliberately — see apply_networking.
@@ -221,9 +210,6 @@ jobs:
           stack: observability
           mode: apply
           terraform-version: ${{ env.TERRAFORM_VERSION }}
-          humans-group-object-id: ${{ vars.HUMANS_GROUP_OBJECT_ID }}
-          ci-plan-group-object-id: ${{ vars.CI_PLAN_GROUP_OBJECT_ID }}
-          ci-apply-group-object-id: ${{ vars.CI_APPLY_GROUP_OBJECT_ID }}
 
   apply_key_vault:
     # always() is required so this job still runs when apply_networking /
@@ -267,7 +253,4 @@ jobs:
           stack: key-vault
           mode: apply
           terraform-version: ${{ env.TERRAFORM_VERSION }}
-          humans-group-object-id: ${{ vars.HUMANS_GROUP_OBJECT_ID }}
-          ci-plan-group-object-id: ${{ vars.CI_PLAN_GROUP_OBJECT_ID }}
-          ci-apply-group-object-id: ${{ vars.CI_APPLY_GROUP_OBJECT_ID }}
           needs-tfstate-storage-account: "true"

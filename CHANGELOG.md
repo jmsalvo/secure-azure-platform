@@ -11,9 +11,9 @@ All notable changes to this repo are documented here.
   `CONTRIBUTING.md`, and ADR 0001 (lifecycle-aligned stacks)
 - bootstrap/: one-time state storage account + user-assigned managed
   identities (GitHub OIDC federated) for CI
-- environments/dev/networking/: VNet, subnet, RBAC role assignments
-- environments/dev/observability/: Log Analytics workspace, RBAC role assignments
-- environments/dev/key-vault/: platform Key Vault, RBAC role assignments
+- environments/dev/networking/: VNet, subnet
+- environments/dev/observability/: Log Analytics workspace
+- environments/dev/key-vault/: platform Key Vault
 - .github/workflows/ci.yml: OIDC-authenticated per-stack plan/apply CI, dependency-ordered
 - root README.md: stack dependency diagram, first-time rollout order, CI shape,
   security considerations
@@ -27,17 +27,26 @@ All notable changes to this repo are documented here.
 
 - Default branch renamed `master` → `main` (matches what `ci.yml` and
   `bootstrap/`'s federated-credential subject already reference).
-- `networking`, `observability`, and `key-vault` take the three Entra group
-  object IDs as input variables (GitHub repo variables `HUMANS_GROUP_OBJECT_ID`
-  / `CI_PLAN_GROUP_OBJECT_ID` / `CI_APPLY_GROUP_OBJECT_ID`) instead of reading
-  them from the `identity` stack's remote state.
 - CI `plan-*` / `apply_*` steps extracted into a `.github/actions/tf-stack`
   composite action — one definition for all six jobs instead of six copies.
-  Repo-variable values now flow through action inputs and the step `env:`
-  block rather than being interpolated into `run:` command text.
 - CI managed identities renamed `id-sap-dev-ci-plan` / `id-sap-dev-ci-apply`
   (were `sap-dev-ci-plan` / `sap-dev-ci-apply`) so they are not confused with
   the same-named Entra groups they belong to.
+- `bootstrap/` creates the three per-stack resource groups
+  (`rg-sap-dev-networking` / `-observability` / `-key-vault`) and every role
+  assignment in the landing zone (the CI groups' per-resource-group `Reader` /
+  `Contributor`, and `sap-dev-humans`' Key Vault Secrets Officer on the
+  `key-vault` RG). The stacks read their resource group with a `data` source
+  and make no role assignments; `networking` and `observability` take no
+  input variables, `key-vault` keeps only `tfstate_storage_account_name`.
+- `bootstrap/` registers the resource providers every stack needs
+  (`resource_providers_to_register`); the stacks set
+  `resource_provider_registrations = "none"` because their
+  resource-group-scoped identities cannot register providers.
+- The three Entra group object IDs are a `bootstrap/` input
+  (`terraform.tfvars`), not GitHub repository variables — CI passes no group
+  IDs to any stack, and the `tf-stack` composite action drops its three
+  group-ID inputs.
 
 ### Removed
 
@@ -62,12 +71,13 @@ All notable changes to this repo are documented here.
   has skippable upstream applies; `apply_networking` / `apply_observability` no
   longer have any skippable dependency and rely on GitHub's implicit
   `success()` gate.
-- bootstrap: grant the CI identities the subscription-scoped roles the stacks
-  actually need — `Reader` for `sap-dev-ci-plan`, `Contributor` plus
-  `Role Based Access Control Administrator` for `sap-dev-ci-apply`. Blob
-  access to the state account alone couldn't create resource groups, and
-  `Contributor` excludes `Microsoft.Authorization/*/Write`, so no stack's
-  role assignments could ever have applied.
+- bootstrap: the CI identities are granted `Reader` / `Contributor` on each
+  stack's resource group only, never a subscription-scoped role. An earlier
+  iteration of `[Unreleased]` gave the apply identity subscription
+  `Contributor` + `Role Based Access Control Administrator` to work around
+  resource groups being created by the stacks themselves; moving
+  resource-group creation into `bootstrap/` removed the need. See ADR 0002
+  (`docs/decisions/0002-resource-groups-in-bootstrap.md`).
 - environments/dev/key-vault: set `public_network_access_enabled = true`
   explicitly. The module defaults it to `false`, which made the vault
   private-endpoint-only and left the documented `network_acls` subnet

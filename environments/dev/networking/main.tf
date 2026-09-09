@@ -6,16 +6,14 @@ module "naming" {
   location    = var.location
 }
 
-resource "azurerm_resource_group" "networking" {
-  name     = "rg-sap-dev-networking"
-  location = var.location
-  tags     = module.naming.tags
+data "azurerm_resource_group" "this" {
+  name = "rg-sap-dev-networking"
 }
 
 module "networking" {
   source = "github.com/jmsalvo/terraform-azure-modules//modules/networking?ref=v0.1.0"
 
-  resource_group_name = azurerm_resource_group.networking.name
+  resource_group_name = data.azurerm_resource_group.this.name
   location            = var.location
   vnet_name           = module.naming.names["virtual_network"]
   address_space       = ["10.30.0.0/16"]
@@ -76,22 +74,4 @@ module "networking" {
       ]
     }
   }
-}
-
-resource "azurerm_role_assignment" "humans_contributor" {
-  scope                = azurerm_resource_group.networking.id
-  role_definition_name = "Contributor"
-  principal_id         = var.humans_group_object_id
-}
-
-resource "azurerm_role_assignment" "ci_plan_reader" {
-  scope                = azurerm_resource_group.networking.id
-  role_definition_name = "Reader"
-  principal_id         = var.ci_plan_group_object_id
-}
-
-resource "azurerm_role_assignment" "ci_apply_contributor" {
-  scope                = azurerm_resource_group.networking.id
-  role_definition_name = "Contributor"
-  principal_id         = var.ci_apply_group_object_id
 }

@@ -1,9 +1,13 @@
 # networking
 
 VNet + one subnet (`platform`, with the `Microsoft.KeyVault` service
-endpoint) + its NSG, plus this stack's own Contributor/Reader role
-assignments for the three admin-managed Entra groups (`sap-dev-humans`,
-`sap-dev-ci-plan`, `sap-dev-ci-apply`).
+endpoint) + its NSG.
+
+The resource group (`rg-sap-dev-networking`) and every RBAC assignment on it
+is created by `bootstrap/` (run as a subscription Owner); this stack reads
+the group with `data "azurerm_resource_group" "this"` and creates only the
+networking resources inside it. See
+[ADR 0002](../../../docs/decisions/0002-resource-groups-in-bootstrap.md).
 
 ## NSG posture
 
@@ -17,9 +21,4 @@ intact deliberately: the Deny rules target the `Internet` service tag, not
 `*`, so adding a workload here doesn't start from a subnet that can't talk
 to itself.
 
-No upstream stack dependency. The three group object IDs arrive as input
-variables (`humans_group_object_id`, `ci_plan_group_object_id`,
-`ci_apply_group_object_id`), fed by GitHub repository variables
-(`HUMANS_GROUP_OBJECT_ID`, `CI_PLAN_GROUP_OBJECT_ID`,
-`CI_APPLY_GROUP_OBJECT_ID`); the groups are created and managed by an admin
-outside this repo.
+No upstream stack dependency. The only input is `location`.

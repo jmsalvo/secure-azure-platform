@@ -93,13 +93,12 @@ $env:ARM_SUBSCRIPTION_ID = (az account show --query id -o tsv)
 CI sets the same variable from the `ARM_SUBSCRIPTION_ID` repo variable
 (see `bootstrap/README.md`).
 
-CI passes each stack's input variables as `-var` flags; a local run has none, so
-before a local `plan`/`apply` in a stack `cp terraform.tfvars.example
-terraform.tfvars` in that stack directory (the copy is gitignored) and fill in
-the real values — group object IDs from `az ad group show --group <name> --query
-id -o tsv` once you own the groups (or from the directory admin), and
-`key-vault`'s `tfstate_storage_account_name` from the bootstrap output or the
-stack's `backend.hcl`.
+Only `key-vault` takes an input variable for local runs
+(`tfstate_storage_account_name` — from the bootstrap output or the stack's
+`backend.hcl`); `cp terraform.tfvars.example terraform.tfvars` there and fill
+it in (the copy is gitignored). `networking` and `observability` take no
+variables. The Entra group object IDs are a `bootstrap/` input, not a stack
+input.
 
 ## CI on pull requests from forks
 
@@ -116,6 +115,21 @@ branch in this repo to get a `plan`.
 
 - `environments/dev/<stack>/` with `versions.tf`, `main.tf`, `variables.tf`,
   `outputs.tf`, `backend.hcl`, `README.md`.
+- In `bootstrap/main.tf`, add the stack's resource-group name to
+  `local.stack_resource_groups`; the `for_each` role-assignment blocks then
+  cover it. A human re-runs `bootstrap/` (subscription Owner) before the
+  stack's first CI run — CI identities cannot create resource groups or role
+  assignments. See [ADR 0002](docs/decisions/0002-resource-groups-in-bootstrap.md).
+- If the new stack — or bumping a module `?ref=` pin — introduces a resource
+  in a provider namespace not already listed, re-derive
+  `resource_providers_to_register` in `bootstrap/versions.tf`. With
+  `resource_provider_registrations = "none"` only that list is registered, and
+  every namespace any config touches counts — including resources created
+  inside pinned modules, which are not visible in the stack HCL.
+- The stack reads its resource group with
+  `data "azurerm_resource_group" "this"` (name hardcoded, matching
+  `bootstrap/`), not `resource "azurerm_resource_group"`, and creates no
+  `azurerm_role_assignment`.
 - Add the stack's `plan`/`apply` jobs to `.github/workflows/ci.yml`, wired
   into the `needs:` graph at the correct dependency tier (see root
   `README.md`'s stack dependency diagram).
