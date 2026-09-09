@@ -87,13 +87,13 @@ resource "azurerm_federated_identity_credential" "ci_apply_main" {
   subject             = "repo:${var.github_repository}:ref:refs/heads/main"
 }
 
-# shared_access_key_enabled = false on the state account means state access is
-# Entra-ID-only; each CI identity needs an explicit data-plane role on the
-# storage account to read/write the state blob (separate from the
-# Reader/Contributor role its Entra group later gets on each resource group).
-resource "azurerm_role_assignment" "tfstate_ci_plan_read" {
+# shared_access_key_enabled = false means state access is Entra-ID-only, so each
+# CI identity needs an explicit data-plane role here. The plan identity gets
+# Contributor not just Reader: `terraform plan` takes a blob lease on the state
+# file for the state lock — a blob write, and the only write it makes here.
+resource "azurerm_role_assignment" "tfstate_ci_plan_lease" {
   scope                = azurerm_storage_account.tfstate.id
-  role_definition_name = "Storage Blob Data Reader"
+  role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.ci_plan.principal_id
   principal_type       = "ServicePrincipal"
 }
@@ -149,7 +149,7 @@ resource "azurerm_role_assignment" "stack_ci_apply_contributor" {
 # resource group (which holds only that vault) reaches it without bootstrap
 # referencing a resource that does not exist yet, and keeps every role
 # assignment in this file. The key-vault module sets
-# enable_rbac_authorization = true, so an RG-scoped data-plane role inherits
+# rbac_authorization_enabled = true, so an RG-scoped data-plane role inherits
 # to the vault.
 resource "azurerm_role_assignment" "key_vault_humans_secrets_officer" {
   scope                = azurerm_resource_group.stack["rg-sap-dev-key-vault"].id

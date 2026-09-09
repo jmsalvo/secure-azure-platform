@@ -18,11 +18,14 @@ provider "azurerm" {
   # The stacks run with resource-group-scoped identities that cannot register
   # resource providers (a subscription-scoped action). bootstrap runs as a
   # subscription Owner and registers every provider any stack needs, once.
-  # "none" means *only* the list below is registered — Microsoft.Network /
-  # Storage / ManagedIdentity are in the provider's "core" set but must still
-  # be listed here; KeyVault and OperationalInsights are not in "core".
+  # With resource_provider_registrations = "none", Terraform registers *only*
+  # the providers listed below — so every namespace any config touches,
+  # including resources created inside pinned modules, must appear here,
+  # regardless of which providers Azure would otherwise auto-register.
   resource_provider_registrations = "none"
   resource_providers_to_register = [
+    # Microsoft.Insights: the key-vault module creates an azurerm_monitor_diagnostic_setting internally (stack passes a non-null log_analytics_workspace_id).
+    "Microsoft.Insights",
     "Microsoft.KeyVault",
     "Microsoft.ManagedIdentity",
     "Microsoft.Network",

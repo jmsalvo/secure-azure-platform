@@ -29,8 +29,6 @@ All notable changes to this repo are documented here.
   `bootstrap/`'s federated-credential subject already reference).
 - CI `plan-*` / `apply_*` steps extracted into a `.github/actions/tf-stack`
   composite action — one definition for all six jobs instead of six copies.
-  Repo-variable values now flow through action inputs and the step `env:`
-  block rather than being interpolated into `run:` command text.
 - CI managed identities renamed `id-sap-dev-ci-plan` / `id-sap-dev-ci-apply`
   (were `sap-dev-ci-plan` / `sap-dev-ci-apply`) so they are not confused with
   the same-named Entra groups they belong to.

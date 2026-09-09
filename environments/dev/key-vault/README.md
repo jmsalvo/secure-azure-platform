@@ -11,7 +11,8 @@ The resource group (`rg-sap-dev-key-vault`) and every RBAC assignment
 (including the `sap-dev-humans` `Key Vault Secrets Officer` data-plane grant)
 is created by `bootstrap/` (run as a subscription Owner); this stack reads
 the group with `data "azurerm_resource_group" "this"` and creates only the
-vault inside it. See `docs/decisions/0002-resource-groups-in-bootstrap.md`.
+vault inside it. See
+[ADR 0002](../../../docs/decisions/0002-resource-groups-in-bootstrap.md).
 
 `network_acls` restricts data-plane access to the `platform` subnet
 `networking` creates (`Microsoft.KeyVault` service endpoint) plus Azure

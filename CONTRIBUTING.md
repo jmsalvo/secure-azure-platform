@@ -120,6 +120,12 @@ branch in this repo to get a `plan`.
   cover it. A human re-runs `bootstrap/` (subscription Owner) before the
   stack's first CI run — CI identities cannot create resource groups or role
   assignments. See [ADR 0002](docs/decisions/0002-resource-groups-in-bootstrap.md).
+- If the new stack — or bumping a module `?ref=` pin — introduces a resource
+  in a provider namespace not already listed, re-derive
+  `resource_providers_to_register` in `bootstrap/versions.tf`. With
+  `resource_provider_registrations = "none"` only that list is registered, and
+  every namespace any config touches counts — including resources created
+  inside pinned modules, which are not visible in the stack HCL.
 - The stack reads its resource group with
   `data "azurerm_resource_group" "this"` (name hardcoded, matching
   `bootstrap/`), not `resource "azurerm_resource_group"`, and creates no

@@ -7,7 +7,7 @@ The resource group (`rg-sap-dev-networking`) and every RBAC assignment on it
 is created by `bootstrap/` (run as a subscription Owner); this stack reads
 the group with `data "azurerm_resource_group" "this"` and creates only the
 networking resources inside it. See
-`docs/decisions/0002-resource-groups-in-bootstrap.md`.
+[ADR 0002](../../../docs/decisions/0002-resource-groups-in-bootstrap.md).
 
 ## NSG posture
 

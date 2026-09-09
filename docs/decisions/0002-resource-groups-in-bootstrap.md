@@ -104,6 +104,22 @@ Owner.
 - ADR 0001's lifecycle-aligned **state** split is unchanged: one state file
   per stack, one resource group per stack, the stack's state owns everything
   in that group. Only the group's *creation* and its RBAC move out.
+- Moving `azurerm_resource_group` out of a stack is **state-breaking** if
+  the stack has ever been applied: removing the `resource` block plans a
+  *destroy* of the group, and Azure cascade-deletes everything in it. This
+  is safe here only because nothing has been applied against a real tenant
+  yet. Had state existed, the migration would be `terraform state rm` for
+  the `azurerm_resource_group` (and its role assignments) in each stack,
+  then `terraform import` of the same groups into `bootstrap/`, before any
+  stack `apply`.
+- The CI **plan** identity holds `Storage Blob Data Contributor` (not
+  `Storage Blob Data Reader`) on the tfstate storage account. `terraform
+  plan` takes a blob lease on the state file for the state lock, which is
+  a blob write; `Reader` would fail every `plan-*` job at "Acquiring
+  state lock". This is the only write the plan identity can perform
+  anywhere — it is not a resource-group or role-assignment write, and the
+  account has blob versioning enabled. Option considered and rejected:
+  `-lock=false` on the plan path, which drops the concurrency guarantee.
 
 ## Supersedes
 

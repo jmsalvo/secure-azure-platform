@@ -60,9 +60,9 @@ terraform apply
 
 `apply` is idempotent — re-run it if the first pass hits a transient Azure
 error (role-assignment propagation, storage-account provisioning, or a
-resource-provider registration still completing; `Microsoft.KeyVault` and
-`Microsoft.OperationalInsights` are not in the provider's "core" set and are
-registered here, which can take a minute on a fresh subscription).
+resource-provider registration still completing; `Microsoft.Insights`,
+`Microsoft.KeyVault`, and `Microsoft.OperationalInsights` are registered
+here, which can take a minute on a fresh subscription).
 
 ## After `apply` — manual steps, in order
 
@@ -101,6 +101,11 @@ registered here, which can take a minute on a fresh subscription).
 4. **Create a GitHub Environment** named `dev-apply` (Settings → Environments)
    with required reviewers. Already referenced by the `apply_*` jobs in
    `.github/workflows/ci.yml`.
+
+> **Cross-check:** `terraform output stack_resource_group_names` should list
+> exactly the three names each stack hardcodes in its
+> `data "azurerm_resource_group" "this"` block — a quick check that the
+> literals and `bootstrap/` have not drifted.
 
 ## Teardown
 

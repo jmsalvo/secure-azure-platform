@@ -73,7 +73,7 @@ CI (`.github/workflows/ci.yml`) runs on every PR and on `main`:
 | `terraform validate` | `bootstrap/` + every stack | none |
 | `tflint` + azurerm ruleset | whole repo | none |
 | `trivy config` | whole repo | none |
-| `terraform plan` | changed stacks, on PRs | OIDC, `sap-dev-ci-plan` (Reader) |
+| `terraform plan` | changed stacks, on PRs | OIDC, `sap-dev-ci-plan` (Reader per resource group) |
 | `terraform apply` | changed stacks, on merge to `main`, dependency-ordered | OIDC, `sap-dev-ci-apply` (Contributor per resource group), gated by the `dev-apply` GitHub Environment |
 
 `scripts\check.ps1` runs the credential-free checks locally (Windows).
@@ -91,7 +91,9 @@ CI (`.github/workflows/ci.yml`) runs on every PR and on `main`:
   human subscription Owner) grants them `Reader` / `Contributor` on each
   stack's resource group only, and neither identity can create role
   assignments — a leaked apply token reaches three named resource groups, not
-  the subscription. See [ADR 0002](docs/decisions/0002-resource-groups-in-bootstrap.md).
+  the subscription. Both additionally hold `Storage Blob Data Contributor` on
+  the state storage account — data-plane only, for the state-lock blob lease,
+  not a control-plane or role-assignment permission. See [ADR 0002](docs/decisions/0002-resource-groups-in-bootstrap.md).
 - Untrusted pull requests can only run a `Reader`-scoped `plan`, never
   mutate infrastructure — `apply` runs only on merged commits to `main`,
   via a separate federated credential, gated by branch protection and the
