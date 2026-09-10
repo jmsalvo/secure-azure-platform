@@ -67,11 +67,11 @@ resource "azurerm_user_assigned_identity" "ci_plan" {
 }
 
 resource "azurerm_federated_identity_credential" "ci_plan_pull_request" {
-  name      = "github-pull-request"
-  parent_id = azurerm_user_assigned_identity.ci_plan.id
-  audience  = ["api://AzureADTokenExchange"]
-  issuer    = "https://token.actions.githubusercontent.com"
-  subject   = "repo:${local.github_immutable_repo}:pull_request"
+  name                      = "github-pull-request"
+  user_assigned_identity_id = azurerm_user_assigned_identity.ci_plan.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = "https://token.actions.githubusercontent.com"
+  subject                   = "repo:${local.github_immutable_repo}:pull_request"
 }
 
 resource "azurerm_user_assigned_identity" "ci_apply" {
@@ -82,11 +82,11 @@ resource "azurerm_user_assigned_identity" "ci_apply" {
 }
 
 resource "azurerm_federated_identity_credential" "ci_apply_main" {
-  name      = "github-push-main"
-  parent_id = azurerm_user_assigned_identity.ci_apply.id
-  audience  = ["api://AzureADTokenExchange"]
-  issuer    = "https://token.actions.githubusercontent.com"
-  subject   = "repo:${local.github_immutable_repo}:ref:refs/heads/main"
+  name                      = "github-push-main"
+  user_assigned_identity_id = azurerm_user_assigned_identity.ci_apply.id
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = "https://token.actions.githubusercontent.com"
+  subject                   = "repo:${local.github_immutable_repo}:ref:refs/heads/main"
 }
 
 # shared_access_key_enabled = false means state access is Entra-ID-only, so each
