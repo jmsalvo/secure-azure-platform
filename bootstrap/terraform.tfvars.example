@@ -1,4 +1,8 @@
 github_repository        = "jmsalvo/secure-azure-platform"
+# GitHub's immutable OIDC subject claims (2026-04-23+) require the owner and
+# repo's numeric IDs: gh api repos/<owner>/<repo> --jq '{owner_id: .owner.id, repo_id: .id}'
+github_owner_id           = "00000000"
+github_repository_id      = "00000000"
 humans_group_object_id   = "00000000-0000-0000-0000-000000000000"
 ci_plan_group_object_id  = "00000000-0000-0000-0000-000000000000"
 ci_apply_group_object_id = "00000000-0000-0000-0000-000000000000"
