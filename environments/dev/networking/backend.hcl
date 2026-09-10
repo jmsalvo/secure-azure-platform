@@ -1,5 +1,5 @@
 resource_group_name  = "rg-sap-dev-bootstrap"
-storage_account_name = "REPLACE_AFTER_BOOTSTRAP"
+storage_account_name = "stsapdeveus2001tfstate"
 container_name       = "tfstate"
 key                  = "networking.tfstate"
 use_azuread_auth     = true

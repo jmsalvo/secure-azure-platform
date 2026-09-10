@@ -15,6 +15,11 @@ terraform {
 provider "azurerm" {
   features {}
 
+  # The bootstrap state storage account has shared_access_key_enabled = false
+  # (Entra-only). Without this, the provider's post-create blob-service poll
+  # defaults to key auth and apply fails with KeyBasedAuthenticationNotPermitted.
+  storage_use_azuread = true
+
   # The stacks run with resource-group-scoped identities that cannot register
   # resource providers (a subscription-scoped action). bootstrap runs as a
   # subscription Owner and registers every provider any stack needs, once.

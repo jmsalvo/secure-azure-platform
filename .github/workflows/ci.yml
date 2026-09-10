@@ -62,6 +62,13 @@ jobs:
 
   changes:
     runs-on: ubuntu-latest
+    # dorny/paths-filter falls back to the GitHub API to list changed files
+    # (the default shallow checkout can't diff locally) and that call needs
+    # pull-requests: read, which the workflow-level `contents: read` above
+    # doesn't grant.
+    permissions:
+      contents: read
+      pull-requests: read
     outputs:
       networking: ${{ steps.filter.outputs.networking }}
       observability: ${{ steps.filter.outputs.observability }}

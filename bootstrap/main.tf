@@ -9,6 +9,10 @@ locals {
     "rg-sap-dev-observability",
     "rg-sap-dev-key-vault",
   ])
+
+  # GitHub's immutable OIDC subject format: "owner@owner_id/repo@repo_id".
+  # See the github_owner_id / github_repository_id variable descriptions.
+  github_immutable_repo = "${split("/", var.github_repository)[0]}@${var.github_owner_id}/${split("/", var.github_repository)[1]}@${var.github_repository_id}"
 }
 
 module "naming" {
@@ -63,12 +67,11 @@ resource "azurerm_user_assigned_identity" "ci_plan" {
 }
 
 resource "azurerm_federated_identity_credential" "ci_plan_pull_request" {
-  name                = "github-pull-request"
-  resource_group_name = azurerm_resource_group.bootstrap.name
-  parent_id           = azurerm_user_assigned_identity.ci_plan.id
-  audience            = ["api://AzureADTokenExchange"]
-  issuer              = "https://token.actions.githubusercontent.com"
-  subject             = "repo:${var.github_repository}:pull_request"
+  name      = "github-pull-request"
+  parent_id = azurerm_user_assigned_identity.ci_plan.id
+  audience  = ["api://AzureADTokenExchange"]
+  issuer    = "https://token.actions.githubusercontent.com"
+  subject   = "repo:${local.github_immutable_repo}:pull_request"
 }
 
 resource "azurerm_user_assigned_identity" "ci_apply" {
@@ -79,12 +82,11 @@ resource "azurerm_user_assigned_identity" "ci_apply" {
 }
 
 resource "azurerm_federated_identity_credential" "ci_apply_main" {
-  name                = "github-push-main"
-  resource_group_name = azurerm_resource_group.bootstrap.name
-  parent_id           = azurerm_user_assigned_identity.ci_apply.id
-  audience            = ["api://AzureADTokenExchange"]
-  issuer              = "https://token.actions.githubusercontent.com"
-  subject             = "repo:${var.github_repository}:ref:refs/heads/main"
+  name      = "github-push-main"
+  parent_id = azurerm_user_assigned_identity.ci_apply.id
+  audience  = ["api://AzureADTokenExchange"]
+  issuer    = "https://token.actions.githubusercontent.com"
+  subject   = "repo:${local.github_immutable_repo}:ref:refs/heads/main"
 }
 
 # shared_access_key_enabled = false means state access is Entra-ID-only, so each
