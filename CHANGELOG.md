@@ -4,6 +4,8 @@ All notable changes to this repo are documented here.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-11
+
 ### Added
 
 - repo scaffold: conventions, tooling config (`.gitattributes`, `.gitignore`,
@@ -82,3 +84,26 @@ All notable changes to this repo are documented here.
   explicitly. The module defaults it to `false`, which made the vault
   private-endpoint-only and left the documented `network_acls` subnet
   restriction inert — ACLs are only evaluated on the public endpoint.
+- bootstrap: added `storage_use_azuread = true` to the `azurerm` provider
+  block. The tfstate storage account has `shared_access_key_enabled = false`,
+  but the provider's post-create blob-service poll defaults to key auth and
+  failed with `KeyBasedAuthenticationNotPermitted` on the first live apply.
+- bootstrap: dropped the deprecated `resource_group_name` argument from the
+  two `azurerm_federated_identity_credential` resources (redundant with
+  `parent_id`), then renamed `parent_id` → `user_assigned_identity_id` ahead
+  of its removal in AzureRM provider v5.
+- ci: granted the `changes` job `pull-requests: read`. `dorny/paths-filter`
+  falls back to the GitHub API's list-files call when the checkout is too
+  shallow to diff locally, and that call 401'd ("Resource not accessible by
+  integration") under the workflow's `contents: read`-only top-level
+  permissions.
+- bootstrap: built the OIDC federated-credential subjects with GitHub's
+  immutable `owner@owner_id/repo@repo_id` format instead of plain names.
+  Repositories created after GitHub's 2026-04-23 rollout get this baked into
+  the token's `sub` claim; the plain-name subject never matched, 401ing the
+  first live PR's `plan-networking` job with `AADSTS700213`.
+- bootstrap: fixed the ci-apply federated credential's OIDC subject to
+  `environment:dev-apply` instead of `ref:refs/heads/main`. Every `apply_*`
+  job runs under the `dev-apply` GitHub Environment, so GitHub always mints
+  an environment-scoped subject — the ref-scoped one could never match,
+  401ing the first live `apply_networking` / `apply_observability` runs.
