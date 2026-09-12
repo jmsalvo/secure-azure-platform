@@ -82,11 +82,15 @@ resource "azurerm_user_assigned_identity" "ci_apply" {
 }
 
 resource "azurerm_federated_identity_credential" "ci_apply_main" {
+  # Every job that assumes this identity (apply_networking, apply_observability,
+  # apply_key_vault) declares `environment: dev-apply` in ci.yml, so GitHub always
+  # mints the OIDC subject as "repo:<repo>:environment:dev-apply" — never the
+  # ref:refs/heads/main shape a push-to-main job gets without an environment.
   name                      = "github-push-main"
   user_assigned_identity_id = azurerm_user_assigned_identity.ci_apply.id
   audience                  = ["api://AzureADTokenExchange"]
   issuer                    = "https://token.actions.githubusercontent.com"
-  subject                   = "repo:${local.github_immutable_repo}:ref:refs/heads/main"
+  subject                   = "repo:${local.github_immutable_repo}:environment:dev-apply"
 }
 
 # shared_access_key_enabled = false means state access is Entra-ID-only, so each
