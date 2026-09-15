@@ -8,7 +8,8 @@ infrastructure that has to predate "clone and go" for every other stack:
   CI authenticates as via GitHub OIDC (the `id-` prefix keeps them distinct
   from the same-suffixed Entra groups they belong to);
 - **one resource group per stack** (`rg-sap-dev-networking`,
-  `rg-sap-dev-observability`, `rg-sap-dev-key-vault`) and **every role
+  `rg-sap-dev-observability`, `rg-sap-dev-key-vault`, `rg-sap-dev-aks`) and
+  **every role
   assignment** in the landing zone — the CI groups' `Reader` / `Contributor`
   per resource group, and `sap-dev-humans`' Key Vault data-plane role. The
   stacks create resources *inside* their group but neither create the group
@@ -106,6 +107,15 @@ here, which can take a minute on a fresh subscription).
 > exactly the three names each stack hardcodes in its
 > `data "azurerm_resource_group" "this"` block — a quick check that the
 > literals and `bootstrap/` have not drifted.
+
+## Defender for Containers (optional)
+
+Off by default. To turn it on briefly (e.g. to capture evidence of a
+Defender finding), set `enable_defender_for_containers = true` in
+`terraform.tfvars`, `terraform apply`, capture what you need, then set it
+back to `false` and `terraform apply` again. It's subscription-wide and
+roughly doubles the running `aks` cluster's cost while on — see the `v0.2`
+design spec's cost summary.
 
 ## Teardown
 

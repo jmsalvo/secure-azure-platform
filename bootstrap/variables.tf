@@ -66,3 +66,9 @@ variable "ci_apply_group_object_id" {
     error_message = "ci_apply_group_object_id must be a GUID."
   }
 }
+
+variable "enable_defender_for_containers" {
+  description = "Enable Microsoft Defender for Containers (subscription-wide). Costs ~$0.00941/vCore/hour across every AKS node while on — see the v0.2 design spec's cost summary. Default off; the operator toggles this on briefly to capture evidence, then off."
+  type        = bool
+  default     = false
+}

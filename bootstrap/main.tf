@@ -8,6 +8,7 @@ locals {
     "rg-sap-dev-networking",
     "rg-sap-dev-observability",
     "rg-sap-dev-key-vault",
+    "rg-sap-dev-aks",
   ])
 
   # GitHub's immutable OIDC subject format: "owner@owner_id/repo@repo_id".
@@ -162,4 +163,14 @@ resource "azurerm_role_assignment" "key_vault_humans_secrets_officer" {
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = var.humans_group_object_id
   principal_type       = "Group"
+}
+
+# Subscription-wide Defender "plan" — the same ownership category as
+# resource-provider registration, so it belongs here (run by a subscription
+# Owner) rather than in the CI-identity-run aks stack. Opt-in and off by
+# default: see the enable_defender_for_containers variable description.
+resource "azurerm_security_center_subscription_pricing" "containers" {
+  count         = var.enable_defender_for_containers ? 1 : 0
+  tier          = "Standard"
+  resource_type = "Containers"
 }
