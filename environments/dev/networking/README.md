@@ -1,7 +1,7 @@
 # networking
 
-VNet + one subnet (`platform`, with the `Microsoft.KeyVault` service
-endpoint) + its NSG.
+VNet + two subnets: `platform` (with the `Microsoft.KeyVault` service
+endpoint) and `aks` (for the `aks` stack's node pools) — each with its own NSG.
 
 The resource group (`rg-sap-dev-networking`) and every RBAC assignment on it
 is created by `bootstrap/` (run as a subscription Owner); this stack reads
@@ -20,5 +20,9 @@ matching the service endpoint on the subnet. Azure's platform defaults
 intact deliberately: the Deny rules target the `Internet` service tag, not
 `*`, so adding a workload here doesn't start from a subnet that can't talk
 to itself.
+
+The `aks` subnet's NSG denies inbound-from-internet only; outbound is
+deliberately left open. See the code comment in `main.tf` and the `v0.2`
+design spec's "Remote-state dependencies" section for the reasoning.
 
 No upstream stack dependency. The only input is `location`.
