@@ -8,10 +8,10 @@ description: >-
 
 inputs:
   stack:
-    description: Stack directory name under environments/dev/ (networking, observability, key-vault).
+    description: Stack directory name under environments/dev/ (networking, observability, key-vault, aks).
     required: true
   mode:
-    description: '"plan" or "apply".'
+    description: '"plan", "apply", or "destroy".'
     required: true
   terraform-version:
     description: Terraform version for hashicorp/setup-terraform.
@@ -53,7 +53,8 @@ runs:
         fi
 
         case "${MODE}" in
-          plan)  terraform plan  -input=false -no-color "${var_args[@]}" ;;
-          apply) terraform apply -input=false -auto-approve -no-color "${var_args[@]}" ;;
-          *) echo "tf-stack: unknown mode '${MODE}' (want plan|apply)" >&2; exit 1 ;;
+          plan)    terraform plan    -input=false -no-color "${var_args[@]}" ;;
+          apply)   terraform apply   -input=false -auto-approve -no-color "${var_args[@]}" ;;
+          destroy) terraform destroy -input=false -auto-approve -no-color "${var_args[@]}" ;;
+          *) echo "tf-stack: unknown mode '${MODE}' (want plan|apply|destroy)" >&2; exit 1 ;;
         esac
