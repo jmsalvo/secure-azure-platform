@@ -4,6 +4,22 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: "Stack to destroy"
+        required: true
+        type: choice
+        default: aks
+        options:
+          - networking
+          - observability
+          - key-vault
+          - aks
+      confirm:
+        description: "Type the stack name exactly (e.g. \"aks\") to confirm destroy"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -329,3 +345,37 @@ jobs:
           mode: apply
           terraform-version: ${{ env.TERRAFORM_VERSION }}
           needs-tfstate-storage-account: "true"
+
+  destroy:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: dev-apply
+    # Same concurrency group as this stack's apply job — a destroy can never
+    # run alongside an apply of the same stack.
+    concurrency:
+      group: apply-${{ github.event.inputs.stack }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID_APPLY }}
+      ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+    steps:
+      - name: verify confirmation matches the selected stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.inputs.confirm }}" != "${{ github.event.inputs.stack }}" ]; then
+            echo "::error::confirm ('${{ github.event.inputs.confirm }}') must exactly match stack ('${{ github.event.inputs.stack }}') — aborting before touching Terraform."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/tf-stack
+        with:
+          stack: ${{ github.event.inputs.stack }}
+          mode: destroy
+          terraform-version: ${{ env.TERRAFORM_VERSION }}
+          needs-tfstate-storage-account: ${{ (github.event.inputs.stack == 'key-vault' || github.event.inputs.stack == 'aks') && 'true' || 'false' }}
