@@ -31,6 +31,48 @@ handoff) — read those first when picking up work, especially after a gap.
   always run by hand, since it needs subscription-Owner credentials no CI
   identity holds.
 
+## Secrets and sensitive information — never committed, never exposed
+
+- **No secrets, credentials, or tokens ever belong in this repo — in code,
+  commit messages, PR descriptions, evidence docs, or CI logs.** That
+  includes client secrets/passwords, storage account keys, connection
+  strings, kubeconfig bearer tokens, SSH/API keys, and anything else that
+  grants access rather than merely identifying something. This repo is
+  designed around **OIDC workload identity federation specifically so this
+  category of thing never has to exist** — if a task seems to need a stored
+  secret, that's a signal to reconsider the design (a new federated
+  credential, a different auth flow), not to reach for a GitHub secret.
+- **GitHub repo *variables* (`vars.*`) vs. *secrets* (`secrets.*`) is a real
+  boundary, not a formality.** Everything this project currently stores as a
+  repo variable — `ARM_TENANT_ID`, `ARM_SUBSCRIPTION_ID`,
+  `ARM_CLIENT_ID_PLAN`/`_APPLY`, `OPERATOR_PUBLIC_IP_CIDR`,
+  `ADMIN_GROUP_OBJECT_IDS` — is an *identifier*, not a credential; OIDC means
+  none of them alone grant access. Before adding a new repo config value,
+  actually check whether it's genuinely non-secret before defaulting to
+  `vars` — don't assume a new value is safe there just because the existing
+  ones are.
+- **Some gitignored local files are sensitive even though the repo isn't.**
+  `bootstrap/terraform.tfstate`(`.backup`), `bootstrap/terraform.tfvars`, any
+  `*.tfvars`, and a merged `~/.kube/config` can all contain real resource
+  IDs, tokens, or state detail that shouldn't leave the operator's machine.
+  Never `git add` them (confirm `.gitignore` actually covers a new one
+  before assuming it does), and never paste their contents into a commit,
+  PR, comment, or doc — summarize instead of quoting verbatim.
+  `bootstrap/`'s local state losing/leaking is also the one true
+  "unrecoverable without pain" risk in this repo (see its README) — treat
+  it accordingly.
+- **This repo is private now but expected to go public later** (same
+  pattern as `terraform-azure-modules`) — treat everything committed as
+  though it's already public. Real Azure resource names, resource-group
+  names, and (by deliberate, already-made tradeoff) the real subscription/
+  tenant ID appearing in `docs/evidence/*.md` is fine — that's the accepted
+  cost of the evidence being genuine proof of a live deploy, not a leak to
+  fix. A password, token, private key, or anything that isn't already
+  intentionally public is not fine, ever, regardless of this repo's current
+  visibility. If genuinely unsure whether something is safe to commit,
+  treat it as a secret until confirmed otherwise and flag it rather than
+  deciding unilaterally.
+
 ## The pattern this project follows for real milestones
 
 Brainstorm → design spec (`docs/superpowers/specs/`) → implementation plan
