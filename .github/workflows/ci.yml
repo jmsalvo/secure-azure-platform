@@ -183,6 +183,8 @@ jobs:
       ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
       ARM_USE_OIDC: "true"
+      TF_VAR_operator_public_ip_cidr: ${{ vars.OPERATOR_PUBLIC_IP_CIDR }}
+      TF_VAR_admin_group_object_ids: ${{ vars.ADMIN_GROUP_OBJECT_IDS }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/tf-stack
@@ -337,6 +339,8 @@ jobs:
       ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
       ARM_USE_OIDC: "true"
+      TF_VAR_operator_public_ip_cidr: ${{ vars.OPERATOR_PUBLIC_IP_CIDR }}
+      TF_VAR_admin_group_object_ids: ${{ vars.ADMIN_GROUP_OBJECT_IDS }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/tf-stack
@@ -363,13 +367,18 @@ jobs:
       ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
       ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
       ARM_USE_OIDC: "true"
+      TF_VAR_operator_public_ip_cidr: ${{ vars.OPERATOR_PUBLIC_IP_CIDR }}
+      TF_VAR_admin_group_object_ids: ${{ vars.ADMIN_GROUP_OBJECT_IDS }}
     steps:
       - name: verify confirmation matches the selected stack
         shell: bash
+        env:
+          CONFIRM: ${{ github.event.inputs.confirm }}
+          STACK: ${{ github.event.inputs.stack }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event.inputs.confirm }}" != "${{ github.event.inputs.stack }}" ]; then
-            echo "::error::confirm ('${{ github.event.inputs.confirm }}') must exactly match stack ('${{ github.event.inputs.stack }}') — aborting before touching Terraform."
+          if [ "${CONFIRM}" != "${STACK}" ]; then
+            echo "::error::confirm ('${CONFIRM}') must exactly match stack ('${STACK}') — aborting before touching Terraform."
             exit 1
           fi
       - uses: actions/checkout@v4

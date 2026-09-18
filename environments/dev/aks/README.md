@@ -20,6 +20,28 @@ Analytics workspace for Container Insights). Does not depend on `key-vault`
 still your current IP before every `apply`, or the API server will refuse
 you along with everyone else.
 
+## CI configuration
+
+`plan-aks`/`apply_aks`/the `destroy` workflow all need two repo variables
+(Settings → Secrets and variables → Actions → Variables) that local runs
+instead set in `terraform.tfvars`:
+
+- `OPERATOR_PUBLIC_IP_CIDR` — same value as `operator_public_ip_cidr` above.
+- `ADMIN_GROUP_OBJECT_IDS` — JSON-encoded list, e.g.
+  `["00000000-0000-0000-0000-000000000000"]` (sap-dev-humans' object ID).
+
+Set them with:
+```bash
+gh variable set OPERATOR_PUBLIC_IP_CIDR --body "<your-ip>/32"
+gh variable set ADMIN_GROUP_OBJECT_IDS --body '["<sap-dev-humans-object-id>"]'
+```
+
+Unlike the three Entra group object IDs `bootstrap/` reads from
+`terraform.tfvars` (see [ADR 0002](../../../docs/decisions/0002-resource-groups-in-bootstrap.md)),
+`admin_group_object_ids` here is not an ARM role assignment — it's a plain
+AKS resource property read by CI's resource-group-scoped `Contributor`
+role, so no bootstrap change is needed.
+
 ## After you apply: deploying the sample workload
 
 The cluster has `local_account_disabled = true` and Azure RBAC for
