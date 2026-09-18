@@ -4,6 +4,8 @@ All notable changes to this repo are documented here.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-18
+
 ### Added
 
 - environments/dev/aks/: hardened AKS cluster stack — public API server
@@ -31,6 +33,40 @@ All notable changes to this repo are documented here.
   `TF_VAR_operator_public_ip_cidr` / `TF_VAR_admin_group_object_ids`, read
   from new repo variables (`OPERATOR_PUBLIC_IP_CIDR` /
   `ADMIN_GROUP_OBJECT_IDS`) — see `environments/dev/aks/README.md`.
+
+### Fixed
+
+- bootstrap: registered `Microsoft.ContainerService`, `Microsoft.OperationsManagement`,
+  and `Microsoft.PolicyInsights` in `resource_providers_to_register`. The
+  first live `apply_aks` failed on each in turn: `Microsoft.ContainerService`
+  (the cluster resource itself), `Microsoft.OperationsManagement` (the
+  always-on Container Insights `oms_agent` block — a namespace distinct
+  from the already-registered `Microsoft.OperationalInsights`), and
+  `Microsoft.PolicyInsights` (the Azure Policy add-on, on by module
+  default via `azure_policy_enabled`). None of these three gaps were
+  visible to any static review — only a real live apply surfaces a
+  missing subscription-level resource-provider registration.
+- environments/dev/aks: switched both node pools from `Standard_B2s` to
+  `Standard_D2s_v6`. `Standard_B2s` isn't on this subscription's
+  allowed-SKU list for `eastus2`; the `_v2` generation
+  (`Standard_B2s_v2`) is on the allowed list but its entire VM family has
+  a subscription-level vCPU quota **limit of 0** (not merely consumed
+  quota — no B-series v2 size can ever be requested here at any count).
+  `Standard_D2s_v6` is both allowed and has quota headroom.
+- environments/dev/aks/k8s/deployment.yaml: added a hardened pod/container
+  `securityContext` (`runAsNonRoot`, `readOnlyRootFilesystem`,
+  `capabilities.drop: ["ALL"]` + `add: ["NET_BIND_SERVICE"]`, `emptyDir`
+  volumes for nginx's runtime-writable paths). The bare spec failed
+  Trivy's `KSV-0014`/`KSV-0118` HIGH checks on the first CI run — a
+  whole-branch review finding had predicted these checks wouldn't fire;
+  the prediction was wrong.
+
+See `docs/evidence/v0.2.0.md` for the full live-apply record, including a
+one-time orphaned-resource cleanup (a cluster left in `provisioningState:
+Failed` by the `Microsoft.OperationsManagement` failure above, since
+Terraform's `CreateOrUpdate` call had already succeeded before the
+subsequent LRO poll failed) that needed a manual `az aks delete` rather
+than a code change.
 
 ## [0.1.0] - 2026-09-11
 
