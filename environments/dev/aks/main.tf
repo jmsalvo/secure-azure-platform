@@ -58,9 +58,13 @@ module "aks" {
   api_server_authorized_ip_ranges = [var.operator_public_ip_cidr]
 
   # System pool: fixed at 1 node, tainted so only kube-system schedules here.
+  # vm_size is Standard_B2s_v2, not the original Standard_B2s: this
+  # subscription's eastus2 quota only allows the v2 generation of the B-series
+  # burstable SKUs (discovered from the live apply's 400 BadRequest, not from
+  # any docs — Azure returns the current allow-list in the error body).
   default_node_pool = {
     name                         = "system"
-    vm_size                      = "Standard_B2s"
+    vm_size                      = "Standard_B2s_v2"
     node_count                   = 1
     only_critical_addons_enabled = true
   }
@@ -68,7 +72,7 @@ module "aks" {
   # User pool: holds the sample workload, autoscales 1-2 nodes.
   user_node_pool = {
     name      = "user"
-    vm_size   = "Standard_B2s"
+    vm_size   = "Standard_B2s_v2"
     min_count = 1
     max_count = 2
   }
