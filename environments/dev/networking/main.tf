@@ -19,9 +19,10 @@ module "networking" {
   address_space       = ["10.30.0.0/16"]
   tags                = module.naming.tags
 
-  # Single subnet for v0.1 — no workload exists yet to place elsewhere. The
-  # Microsoft.KeyVault service endpoint is what lets key-vault's network_acls
-  # allow traffic from this subnet (see environments/dev/key-vault).
+  # Two subnets: platform (this landing zone's original workloads) and aks
+  # (v0.2, defined below). The Microsoft.KeyVault service endpoint here is
+  # what lets key-vault's network_acls allow traffic from this subnet (see
+  # environments/dev/key-vault).
   subnets = {
     platform = {
       address_prefixes  = ["10.30.1.0/24"]
