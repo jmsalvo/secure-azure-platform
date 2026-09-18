@@ -37,6 +37,8 @@ provider "azurerm" {
     "Microsoft.ManagedIdentity",
     "Microsoft.Network",
     "Microsoft.OperationalInsights",
+    # Microsoft.OperationsManagement: distinct from Microsoft.OperationalInsights above — AKS's oms_agent (Container Insights monitoring add-on, always enabled by the aks module) needs this namespace too, discovered from a live apply's MissingSubscriptionRegistration error.
+    "Microsoft.OperationsManagement",
     "Microsoft.Storage",
   ]
 }
