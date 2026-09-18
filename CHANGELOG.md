@@ -4,6 +4,34 @@ All notable changes to this repo are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- environments/dev/aks/: hardened AKS cluster stack — public API server
+  firewalled to an authorized-IP allow list (`operator_public_ip_cidr`),
+  Azure RBAC for Kubernetes with local accounts disabled
+  (`admin_group_object_ids` grants cluster-admin), and split system/user
+  node pools. Depends on `networking` (the `aks` subnet) and
+  `observability` (Log Analytics for Container Insights); no dependency on
+  `key-vault`.
+- environments/dev/aks/k8s/: sample workload manifests (`Deployment`,
+  `Service`, `NetworkPolicy`) proving the cluster's pod-to-pod isolation,
+  deployed by hand via `kubectl` (CI has no Kubernetes-level RBAC).
+- `.github/actions/tf-stack`: a `destroy` mode alongside the existing
+  `plan`/`apply`.
+- `.github/workflows/ci.yml`: `plan-aks` / `apply_aks` jobs, dependency-
+  ordered like the other stacks' apply jobs.
+- `.github/workflows/ci.yml`: a `workflow_dispatch` `destroy` job, per-stack
+  with a type-the-stack-name confirmation gate before running
+  `terraform destroy`.
+
+### Changed
+
+- CI (`plan-aks`/`apply_aks`/`destroy`) supplies `operator_public_ip_cidr`
+  and `admin_group_object_ids` to the `aks` stack via
+  `TF_VAR_operator_public_ip_cidr` / `TF_VAR_admin_group_object_ids`, read
+  from new repo variables (`OPERATOR_PUBLIC_IP_CIDR` /
+  `ADMIN_GROUP_OBJECT_IDS`) — see `environments/dev/aks/README.md`.
+
 ## [0.1.0] - 2026-09-11
 
 ### Added
