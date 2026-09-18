@@ -29,6 +29,8 @@ provider "azurerm" {
   # regardless of which providers Azure would otherwise auto-register.
   resource_provider_registrations = "none"
   resource_providers_to_register = [
+    # Microsoft.ContainerService: the aks stack creates an azurerm_kubernetes_cluster (v0.2).
+    "Microsoft.ContainerService",
     # Microsoft.Insights: the key-vault module creates an azurerm_monitor_diagnostic_setting internally (stack passes a non-null log_analytics_workspace_id).
     "Microsoft.Insights",
     "Microsoft.KeyVault",
