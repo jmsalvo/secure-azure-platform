@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sample-workload
+spec:
+  podSelector:
+    matchLabels:
+      app: sample-workload
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              network-policy-demo-client: "true"
+      ports:
+        - protocol: TCP
+          port: 80

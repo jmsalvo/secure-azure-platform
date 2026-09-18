@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars (gitignored) for local runs. CI passes
+# tfstate_storage_account_name as a -var flag, read from backend.hcl.
+tfstate_storage_account_name = "REPLACE_WITH_BOOTSTRAP_OUTPUT"
+
+# Your current public IP as a /32 CIDR. Changes across sessions/networks —
+# re-check this before every apply. Find yours with:
+#   (Invoke-RestMethod ifconfig.me)   # PowerShell
+#   curl ifconfig.me                 # bash
+operator_public_ip_cidr = "REPLACE_WITH_YOUR_PUBLIC_IP/32"
+
+# sap-dev-humans' object ID (az ad group show --group sap-dev-humans --query id -o tsv)
+# — grants your Entra identity kubectl access via Azure RBAC for Kubernetes.
+admin_group_object_ids = ["REPLACE_WITH_SAP_DEV_HUMANS_OBJECT_ID"]

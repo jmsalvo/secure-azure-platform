@@ -13,6 +13,8 @@ Decisions: `docs/decisions/`.
 flowchart LR
     networking[networking] --> keyvault[key-vault]
     observability[observability] --> keyvault
+    networking --> aks[aks]
+    observability --> aks
 ```
 
 One Terraform state file per lifecycle-aligned stack
@@ -24,6 +26,7 @@ See [ADR 0001](docs/decisions/0001-lifecycle-aligned-stacks.md) for why.
 | [`networking`](environments/dev/networking) | VNet, subnet | — |
 | [`observability`](environments/dev/observability) | Log Analytics workspace | — |
 | [`key-vault`](environments/dev/key-vault) | Platform Key Vault | `networking`, `observability` |
+| [`aks`](environments/dev/aks) | AKS cluster (hardened) | `networking`, `observability` |
 
 The three Entra RBAC groups (`sap-dev-humans` = `Contributor`,
 `sap-dev-ci-plan` = `Reader`, `sap-dev-ci-apply` = `Contributor`) are created
@@ -35,9 +38,10 @@ and [ADR 0002](docs/decisions/0002-resource-groups-in-bootstrap.md).
 
 Modules come from the already-released
 [`jmsalvo/terraform-azure-modules`](https://github.com/jmsalvo/terraform-azure-modules)
-at `?ref=v0.1.0` wherever one exists (`naming`, `networking`, `key-vault`);
-plain `azurerm` resources where it doesn't (`observability`'s Log Analytics
-workspace — no module wraps a single resource).
+at `?ref=v0.1.0` wherever one exists (`naming`, `networking`, `key-vault`),
+and at `?ref=v0.2.0` for `aks`; plain `azurerm` resources where no module
+exists (`observability`'s Log Analytics workspace — no module wraps a
+single resource).
 
 ## First-time rollout
 
