@@ -39,6 +39,8 @@ provider "azurerm" {
     "Microsoft.OperationalInsights",
     # Microsoft.OperationsManagement: distinct from Microsoft.OperationalInsights above — AKS's oms_agent (Container Insights monitoring add-on, always enabled by the aks module) needs this namespace too, discovered from a live apply's MissingSubscriptionRegistration error.
     "Microsoft.OperationsManagement",
+    # Microsoft.PolicyInsights: the aks module's azure_policy_enabled defaults to true and the aks stack doesn't override it, so every apply enables the Azure Policy add-on for AKS, which needs this namespace.
+    "Microsoft.PolicyInsights",
     "Microsoft.Storage",
   ]
 }
