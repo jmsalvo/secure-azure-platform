@@ -29,12 +29,18 @@ provider "azurerm" {
   # regardless of which providers Azure would otherwise auto-register.
   resource_provider_registrations = "none"
   resource_providers_to_register = [
+    # Microsoft.ContainerService: the aks stack creates an azurerm_kubernetes_cluster (v0.2).
+    "Microsoft.ContainerService",
     # Microsoft.Insights: the key-vault module creates an azurerm_monitor_diagnostic_setting internally (stack passes a non-null log_analytics_workspace_id).
     "Microsoft.Insights",
     "Microsoft.KeyVault",
     "Microsoft.ManagedIdentity",
     "Microsoft.Network",
     "Microsoft.OperationalInsights",
+    # Microsoft.OperationsManagement: distinct from Microsoft.OperationalInsights above — AKS's oms_agent (Container Insights monitoring add-on, always enabled by the aks module) needs this namespace too, discovered from a live apply's MissingSubscriptionRegistration error.
+    "Microsoft.OperationsManagement",
+    # Microsoft.PolicyInsights: the aks module's azure_policy_enabled defaults to true and the aks stack doesn't override it, so every apply enables the Azure Policy add-on for AKS, which needs this namespace.
+    "Microsoft.PolicyInsights",
     "Microsoft.Storage",
   ]
 }
