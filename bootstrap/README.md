@@ -104,7 +104,7 @@ here, which can take a minute on a fresh subscription).
    `.github/workflows/ci.yml`.
 
 > **Cross-check:** `terraform output stack_resource_group_names` should list
-> exactly the three names each stack hardcodes in its
+> exactly the names each stack hardcodes in its
 > `data "azurerm_resource_group" "this"` block — a quick check that the
 > literals and `bootstrap/` have not drifted.
 
