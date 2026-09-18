@@ -14,6 +14,11 @@ spec:
       labels:
         app: sample-workload
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
       containers:
         - name: nginx
           image: nginx:1.27-alpine
@@ -26,3 +31,25 @@ spec:
             limits:
               cpu: 250m
               memory: 256Mi
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+              # nginx listens on port 80 (a privileged port) while running as
+              # the non-root nginx user (uid 101) — needs this capability
+              # back even with the readOnlyRootFilesystem/drop-ALL baseline.
+              add: ["NET_BIND_SERVICE"]
+          volumeMounts:
+            # Read-only rootfs means nginx's own writable paths need emptyDir
+            # volumes; these are the only ones the stock nginx:alpine image
+            # writes to at runtime.
+            - name: cache
+              mountPath: /var/cache/nginx
+            - name: run
+              mountPath: /var/run
+      volumes:
+        - name: cache
+          emptyDir: {}
+        - name: run
+          emptyDir: {}
