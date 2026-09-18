@@ -58,13 +58,18 @@ module "aks" {
   api_server_authorized_ip_ranges = [var.operator_public_ip_cidr]
 
   # System pool: fixed at 1 node, tainted so only kube-system schedules here.
-  # vm_size is Standard_B2s_v2, not the original Standard_B2s: this
-  # subscription's eastus2 quota only allows the v2 generation of the B-series
-  # burstable SKUs (discovered from the live apply's 400 BadRequest, not from
-  # any docs — Azure returns the current allow-list in the error body).
+  # vm_size is Standard_D2s_v6, not a B-series burstable size: this
+  # subscription's "Standard Bsv2/Basv2/Bpsv2 Family" vCPU quotas are all a
+  # hard 0 in eastus2 (not merely consumed — the limit itself is 0), so no
+  # B-series v2 size can ever be requested here regardless of count. The
+  # Dsv6 family has 10 vCPUs of quota headroom (confirmed via
+  # `az vm list-usage --location eastus2`), and Standard_D2s_v6 is on this
+  # subscription's allowed-SKU list for the region. Costs ~$0.101/hr/node
+  # (East US 2, Linux, pay-as-you-go) vs. B2s_v2's lower burstable rate —
+  # acceptable for a stack that's created, verified, and destroyed same-session.
   default_node_pool = {
     name                         = "system"
-    vm_size                      = "Standard_B2s_v2"
+    vm_size                      = "Standard_D2s_v6"
     node_count                   = 1
     only_critical_addons_enabled = true
   }
@@ -72,7 +77,7 @@ module "aks" {
   # User pool: holds the sample workload, autoscales 1-2 nodes.
   user_node_pool = {
     name      = "user"
-    vm_size   = "Standard_B2s_v2"
+    vm_size   = "Standard_D2s_v6"
     min_count = 1
     max_count = 2
   }
