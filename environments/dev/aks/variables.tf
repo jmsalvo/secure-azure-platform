@@ -20,6 +20,6 @@ variable "operator_public_ip_cidr" {
 }
 
 variable "admin_group_object_ids" {
-  description = "Entra group object IDs granted cluster-admin via Azure RBAC for Kubernetes — set to [sap-dev-humans' object ID] so you can `az aks get-credentials` + `kubectl apply` the sample workload by hand. Not a bootstrap-owned ARM role assignment (ADR 0002 is about who creates *ARM* role assignments); this is a value read into an AKS resource property, so ci-apply's resource-group-scoped Contributor role is enough to set it. Default empty means no one has kubectl access until you set this."
+  description = "Entra group object IDs granted cluster-admin via Azure RBAC for Kubernetes — set to [sap-dev-humans' object ID] so you can `az aks get-credentials` + `kubectl apply` the sample workload by hand. Not a bootstrap-owned ARM role assignment (ADR 0002 is about who creates *ARM* role assignments); this is a value read into an AKS resource property, so ci-apply's resource-group-scoped Contributor role is enough to set it. Required, no default — an unset value fails the apply closed rather than silently producing a cluster no one can reach via kubectl."
   type        = list(string)
 }
